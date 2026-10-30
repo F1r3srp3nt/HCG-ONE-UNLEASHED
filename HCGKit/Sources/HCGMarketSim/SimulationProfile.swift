@@ -6,7 +6,7 @@ import HCGDomain
 /// These are simulation settings, not real market statistics. Session start
 /// prices, resting sizes and commissions come from HCG ONE's Trading Lab; the
 /// spread parameters are new in UNLEASHED (see docs/M1_IMPLEMENTATION_REPORT.md).
-public struct SimulationProfile: Sendable, Hashable {
+public struct SimulationProfile: Sendable, Hashable, Codable {
     public let symbol: MarketSymbol
     /// Price the simulated session opens at.
     public let sessionStartPrice: Double

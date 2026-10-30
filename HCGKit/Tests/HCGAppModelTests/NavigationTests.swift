@@ -29,7 +29,7 @@ struct NavigationTests {
     @Test("Only implemented destinations are marked available; every other one explains why")
     func availabilityIsHonest() {
         let available = Set(SidebarItem.allCases.filter(\.isAvailableInThisBuild))
-        #expect(available == [.home, .orderFlow, .settings])
+        #expect(available == [.home, .simulate, .orderFlow, .settings])
         for item in SidebarItem.allCases where !item.isAvailableInThisBuild {
             guard let note = item.developmentNote else {
                 Issue.record("\(item) is unavailable but has no development note")

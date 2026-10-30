@@ -5,7 +5,7 @@ import Foundation
 /// SplitMix64 — small, fast, reproducible. The same seed always produces the
 /// same sequence, which is what makes simulated sessions and scenario replays
 /// exact on every machine.
-public struct SeededRNG: Sendable, Equatable {
+public struct SeededRNG: Sendable, Equatable, Codable {
     public private(set) var state: UInt64
 
     public init(seed: UInt64) {

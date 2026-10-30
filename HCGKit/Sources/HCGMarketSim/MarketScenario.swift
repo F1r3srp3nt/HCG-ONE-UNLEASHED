@@ -19,7 +19,7 @@ public enum ScenarioEvent: Codable, Sendable, Hashable {
 
 /// One phase of a scripted scenario: a stretch of market updates with a flow
 /// regime plus optional discrete events.
-public struct ScenarioPhase: Hashable, Sendable {
+public struct ScenarioPhase: Hashable, Sendable, Codable {
     /// Number of market updates in the phase.
     public var ticks: Int
     /// Mean drift in ticks per update (negative = sellers in control).
@@ -45,8 +45,8 @@ public struct ScenarioPhase: Hashable, Sendable {
 
 /// A complete training scenario. `observe` tells the user what to watch for;
 /// `debrief` is the explanation revealed afterwards.
-public struct MarketScenario: Identifiable, Hashable, Sendable {
-    public enum Level: String, Sendable, CaseIterable {
+public struct MarketScenario: Identifiable, Hashable, Sendable, Codable {
+    public enum Level: String, Sendable, CaseIterable, Codable {
         case beginner, intermediate, advanced
     }
 

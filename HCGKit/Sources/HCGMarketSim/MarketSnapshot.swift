@@ -3,8 +3,8 @@ import HCGDomain
 
 /// One executed trade on the simulated tape. The aggressor consumed the
 /// opposite side: a buy lifts the offer, a sell hits the bid.
-public struct TapeTrade: Hashable, Sendable, Identifiable {
-    public enum Aggressor: String, Hashable, Sendable { case buy, sell }
+public struct TapeTrade: Hashable, Sendable, Identifiable, Codable {
+    public enum Aggressor: String, Hashable, Sendable, Codable { case buy, sell }
 
     public let id: Int
     /// Market update in which the trade printed.
@@ -15,7 +15,7 @@ public struct TapeTrade: Hashable, Sendable, Identifiable {
 }
 
 /// One price bar (OHLC in ticks) with its executed volume and delta.
-public struct PriceBar: Hashable, Sendable, Identifiable {
+public struct PriceBar: Hashable, Sendable, Identifiable, Codable {
     public let index: Int
     public let openTicks: Int64
     public internal(set) var highTicks: Int64

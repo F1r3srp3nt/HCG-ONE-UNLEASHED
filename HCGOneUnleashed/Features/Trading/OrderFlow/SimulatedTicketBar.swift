@@ -1,16 +1,19 @@
 import HCGDesignSystem
 import HCGDomain
 import HCGMarketSim
+import HCGTrading
 import SwiftUI
 
-/// Basic simulated ticket: market orders against the simulated book, plus
-/// the position and P&L of the simulated account. Nothing leaves this Mac.
+/// Quick simulated ticket: market orders against the simulated book, plus
+/// the position and P&L of the simulated account. Limit, stop and bracket
+/// orders are on the Simulate screen. Nothing leaves this Mac.
 ///
 /// One row on wide windows, two rows (controls, then account figures) when
 /// narrower; a single fixed row clipped at smaller widths (docs/M1_AUDIT.md, OF-2).
 struct SimulatedTicketBar: View {
     let snapshot: MarketSnapshot
-    let account: SimulatedAccount
+    let account: TradingAccount
+    let unrealizedPnL: Double
     let equity: Double
     let message: String?
 
@@ -55,7 +58,7 @@ struct SimulatedTicketBar: View {
                     .fixedSize()
             }
 
-            Stepper(value: $quantity, in: 1...MarketOrder.maximumQuantity) {
+            Stepper(value: $quantity, in: 1...max(1, account.configuration.risk.maxOrderQuantity)) {
                 Text("Qty \(quantity)").font(HCGFont.value(12)).frame(minWidth: 46, alignment: .leading)
             }
             .fixedSize()
@@ -75,12 +78,12 @@ struct SimulatedTicketBar: View {
 
     private var figures: some View {
         let currency = snapshot.spec.currency
-        let unrealized = account.unrealizedPnL(snapshot)
+        let unrealized = unrealizedPnL
         return HStack(spacing: 14) {
             TradingStat("Position", value: positionText(account.position(snapshot.symbol)), size: 13)
             TradingStat("Unrealized", value: PriceFormat.money(unrealized, currency: currency, signed: true),
                         color: HCGColor.tone(for: unrealized), size: 13)
-            TradingStat("Realized", value: PriceFormat.money(account.realizedPnL, currency: currency, signed: true),
+            TradingStat("Realized (all)", value: PriceFormat.money(account.realizedPnL, currency: currency, signed: true),
                         color: HCGColor.tone(for: account.realizedPnL), size: 13)
             TradingStat("Equity", value: PriceFormat.money(equity, currency: currency), size: 13)
         }
@@ -99,14 +102,14 @@ struct SimulatedTicketBar: View {
     }
 
     private func submit(_ side: OrderSide) {
-        let order = MarketOrder(symbol: snapshot.symbol, side: side, quantity: quantity)
-        Task { await simulation.submit(order) }
+        let request = OrderRequest.market(side, quantity, snapshot.symbol)
+        Task { await simulation.submit(request) }
     }
 
     private func positionText(_ position: Position?) -> String {
         guard let position else { return "Flat" }
         let side = position.isLong ? "Long" : "Short"
-        let price = PriceFormat.price(position.averagePrice, decimals: snapshot.spec.priceDecimals + 1)
+        let price = TradingFormat.averagePrice(position.averagePrice, snapshot.spec)
         return "\(side) \(abs(position.quantity)) @ \(price)"
     }
 }

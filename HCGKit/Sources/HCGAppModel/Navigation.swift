@@ -114,18 +114,13 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
     /// docs/DEVELOPMENT_ROADMAP.md.
     public var developmentNote: DevelopmentNote? {
         switch self {
-        case .home, .orderFlow, .settings:
+        case .home, .simulate, .orderFlow, .settings:
             nil
         case .learn:
             DevelopmentNote(
                 summary: "Structured trading lessons from HCG ONE's Trading Lab curriculum.",
                 details: ["Planned for milestone M2 (trading workstation).",
                           "Lesson content exists in HCG ONE and will be ported deliberately."])
-        case .simulate:
-            DevelopmentNote(
-                summary: "A full simulated order ticket with positions, orders and history.",
-                details: ["Planned for milestone M2.",
-                          "A basic simulated ticket (market orders only) is available at the bottom of Order Flow."])
         case .marketLab:
             DevelopmentNote(
                 summary: "Scripted market scenarios — sweeps, absorption, breakouts — with debriefs.",

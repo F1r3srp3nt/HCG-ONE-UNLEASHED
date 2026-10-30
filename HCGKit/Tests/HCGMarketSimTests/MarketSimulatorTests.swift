@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import HCGDomain
+import HCGTrading
 @testable import HCGMarketSim
 
 extension MarketScenario: CustomTestStringConvertible {
@@ -334,13 +335,21 @@ struct SimulationStateTests {
     }
 
     @Test("Account history stays bounded under sustained order entry")
-    func fillHistoryBounded() throws {
-        var state = SimulationState(seed: 9)
-        for i in 0..<1_000 {
+    func fillHistoryBounded() {
+        // Large balance: this test is about bounded history, not risk. (With
+        // $50,000 the spread + commission losses correctly exhaust the ES
+        // margin after about 2,100 round trips and further buys are rejected.)
+        var configuration = AccountConfiguration.standard
+        configuration.startingBalance = 10_000_000
+        var state = SimulationState(seed: 9, account: TradingAccount(configuration: configuration))
+        for i in 0..<6_000 {
             state.advance()
-            try state.submit(MarketOrder(symbol: .es, side: i.isMultiple(of: 2) ? .buy : .sell, quantity: 1))
+            state.submit(.market(i.isMultiple(of: 2) ? .buy : .sell, 1, .es, id: "soak-\(i)"))
         }
-        #expect(state.account.fills.count == SimulatedAccount.fillHistoryLimit)
+        #expect(state.account.fills.count == TradingAccount.fillLimit)
+        #expect(state.account.orderHistory.count == TradingAccount.orderHistoryLimit)
+        #expect(state.account.trades.count == 3_000, "every second fill closes a round trip")
+        #expect(state.account.events.count == TradingAccount.eventLimit)
         #expect(state.account.position(.es) == nil, "alternating buys and sells end flat")
     }
 }

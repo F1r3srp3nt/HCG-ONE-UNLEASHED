@@ -15,5 +15,5 @@ enum AppInfo {
     static var bundleIdentifier: String { Bundle.main.bundleIdentifier ?? "—" }
 
     /// Shown on Home and in Settings → About. Update with each milestone.
-    static let developmentStage = "Development build — M2.0 stabilization"
+    static let developmentStage = "Development build — M2 Stage 1 (simulated trading)"
 }

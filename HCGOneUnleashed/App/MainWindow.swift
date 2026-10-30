@@ -16,6 +16,7 @@ struct MainWindow: View {
         } detail: {
             NavigationStack {
                 DetailView(item: navigation.selection ?? .home)
+                    .safeAreaInset(edge: .top, spacing: 0) { SessionNoticeBanner() }
             }
         }
         .frame(minWidth: 980, minHeight: 620)
@@ -93,11 +94,13 @@ private struct DetailView: View {
         switch item {
         case .home:
             HomeView()
+        case .simulate:
+            SimulateView()
         case .orderFlow:
             OrderFlowView()
         case .settings:
             SettingsPage()
-        case .learn, .simulate, .marketLab, .progress, .explore, .projects, .connect, .profile, .clientWorkspace:
+        case .learn, .marketLab, .progress, .explore, .projects, .connect, .profile, .clientWorkspace:
             UnavailableSectionView(item: item)
         }
     }

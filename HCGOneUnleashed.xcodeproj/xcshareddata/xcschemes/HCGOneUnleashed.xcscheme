@@ -53,6 +53,16 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "HCGTradingTests"
+               BuildableName = "HCGTradingTests"
+               BlueprintName = "HCGTradingTests"
+               ReferencedContainer = "container:HCGKit">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "HCGAppModelTests"
                BuildableName = "HCGAppModelTests"
                BlueprintName = "HCGAppModelTests"

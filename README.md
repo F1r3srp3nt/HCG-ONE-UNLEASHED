@@ -2,11 +2,11 @@
 
 The native macOS edition of HCG ONE by Hakmi Capital Group.
 
-**Status: development build, M2.0 stabilization** (audit and repair of M1). Native shell, simulated market engine and the first trading screen (Order Flow).
+**Status: development build, M2 Stage 1** (simulated trading account and order engine). Native shell, simulated market engine, Order Flow, and a simulated trading account with market, limit, stop and bracket orders (Trading → Simulate).
 - No sign-in, no network connections, no payments or licensing.
-- **All market data is simulated.**
+- **All market data and all trading are simulated.** No order ever leaves the Mac.
 
-Planning and status documents are in [`docs/`](docs). Start with [`docs/M1_AUDIT.md`](docs/M1_AUDIT.md), [`docs/M2_TEST_RESULTS.md`](docs/M2_TEST_RESULTS.md) and [`docs/M2_IMPLEMENTATION_PLAN.md`](docs/M2_IMPLEMENTATION_PLAN.md).
+Planning and status documents are in [`docs/`](docs). Start with [`docs/M2_STAGE1_REPORT.md`](docs/M2_STAGE1_REPORT.md), [`docs/TRADING_ENGINE.md`](docs/TRADING_ENGINE.md) and [`docs/M2_IMPLEMENTATION_PLAN.md`](docs/M2_IMPLEMENTATION_PLAN.md).
 
 ## Requirements
 
@@ -22,7 +22,7 @@ Planning and status documents are in [`docs/`](docs). Start with [`docs/M1_AUDIT
 ```bash
 git clone https://github.com/F1r3srp3nt/HCG-ONE-UNLEASHED.git
 cd HCG-ONE-UNLEASHED
-git checkout feature/m1-native-macos-foundation
+git checkout feature/m2-stage1-trading-engine   # current development branch, once pushed
 open HCGOneUnleashed.xcodeproj
 ```
 
@@ -58,7 +58,7 @@ xcodebuild -project HCGOneUnleashed.xcodeproj -scheme HCGOneUnleashed -configura
 
 ### Core tests without a Mac
 
-`HCGDomain` and `HCGMarketSim` are platform-neutral, and `HCGDesignSystem` compiles to an empty module off macOS. The core tests also run in the official Swift Docker image:
+`HCGDomain`, `HCGTrading`, `HCGMarketSim` and `HCGAppModel` use only Foundation (and Observation), and `HCGDesignSystem` compiles to an empty module off macOS. The core tests also run in the official Swift Docker image:
 
 ```bash
 docker run --rm -v "$PWD/HCGKit":/pkg -w /pkg swift:6.2-noble swift test
@@ -70,17 +70,18 @@ docker run --rm -v "$PWD/HCGKit":/pkg -w /pkg swift:6.2-noble swift test
 HCGOneUnleashed.xcodeproj    macOS app project (one target, shared scheme)
 HCGOneUnleashed/
   App/                       entry point, main window, navigation, menu commands
-  Features/                  Home, Trading/OrderFlow, Settings
-  Components/                shared app views (unavailable-section state, brand mark/wordmark)
+  Features/                  Home, Trading/Simulate, Trading/OrderFlow, Settings
+  Components/                shared app views (unavailable-section state, brand mark/wordmark, session banner, confirmations)
   Platform/                  bundle information
   Resources/                 asset catalog (temporary DEV icon), entitlements
 HCGKit/                      local Swift package
   Sources/HCGDomain/         instruments, formatting, HCG product catalog
-  Sources/HCGMarketSim/      simulated market, order book, broker, clock, GEX model
+  Sources/HCGTrading/        simulated account and order engine (orders, fills, positions, risk, costs)
+  Sources/HCGMarketSim/      simulated market, order book, clock, session persistence, GEX model
   Sources/HCGAppModel/       navigation model (destinations, Go menu, window state)
   Sources/HCGDesignSystem/   colors, typography, panels, buttons, badges
   Tests/                     Swift Testing suites
-docs/                        architecture, security, roadmap, decisions, M1 report, M1 audit, M2 plan and test results
+docs/                        architecture, security, roadmap, decisions, trading engine, M1 report and audit, M2 plan, results and Stage 1 report
 ```
 
 ## Boundaries
@@ -88,3 +89,4 @@ docs/                        architecture, security, roadmap, decisions, M1 repo
 - **`F1r3srp3nt/HCG-One` is a read-only reference.** Code is ported from it deliberately, file by file. Ported files name their source path and commit.
 - **No production services are contacted.** Authentication, HCG Connect, workspaces, licensing and payments are future milestones, each requiring founder approval.
 - **No secrets.** Signing keys, notarization credentials and update-signing keys never enter this repository.
+- **Platforms.** The app is macOS only. Everything below the app layer (domain, trading engine, simulation, navigation model) is platform-neutral Swift and is tested on Linux, so a later Windows or Linux edition could reuse it. The UI (SwiftUI, AppKit, `HCGDesignSystem`) would be rebuilt for that platform. No Windows or Linux work is planned.

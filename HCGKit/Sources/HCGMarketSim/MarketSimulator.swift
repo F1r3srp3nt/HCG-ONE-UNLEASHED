@@ -18,7 +18,7 @@ import HCGDomain
 ///
 /// Every update executes trades against the resting book; the tape, bars,
 /// VWAP and cumulative delta are projections of those same trades.
-public struct MarketSimulator: Sendable, Equatable {
+public struct MarketSimulator: Sendable, Equatable, Codable {
     public let symbol: MarketSymbol
     public let spec: InstrumentSpec
     public let profile: SimulationProfile

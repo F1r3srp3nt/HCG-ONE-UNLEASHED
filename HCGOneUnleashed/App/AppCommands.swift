@@ -1,9 +1,10 @@
 import HCGAppModel
 import HCGDomain
 import HCGMarketSim
+import HCGTrading
 import SwiftUI
 
-/// Native menu commands: Go (⌘1…⌘6) and Simulation.
+/// Native menu commands: Go (⌘1…⌘6), Simulation and Trading.
 struct AppCommands: Commands {
     let simulation: SimulationHost
     @FocusedValue(\.navigation) private var navigation
@@ -67,8 +68,38 @@ struct AppCommands: Commands {
 
             Divider()
 
-            Button("Reset Simulated Session") {
+            Button("Reset Simulated Session…") {
+                guard Confirmation.confirm(Confirmation.resetSessionTitle,
+                                           message: Confirmation.resetSessionMessage, action: "Reset Session") else { return }
                 Task { await simulation.reset() }
+            }
+        }
+
+        // Every command here acts on the simulated account only.
+        CommandMenu("Trading") {
+            Button("Simulated Order Ticket") { navigation?.selection = .simulate }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+                .disabled(navigation == nil)
+
+            Divider()
+
+            Button("Cancel All Simulated Orders") {
+                Task { await simulation.cancelAll() }
+            }
+            .disabled(simulation.account.openOrders.isEmpty)
+
+            Button("Flatten All Simulated Positions") {
+                Task { await simulation.flattenAll() }
+            }
+            .keyboardShortcut("f", modifiers: [.command, .option, .shift])
+            .disabled(simulation.account.positions.isEmpty && simulation.account.openOrders.isEmpty)
+
+            Divider()
+
+            Button("Reset Simulated Account…") {
+                guard Confirmation.confirm(Confirmation.resetAccountTitle,
+                                           message: Confirmation.resetAccountMessage, action: "Reset Account") else { return }
+                Task { await simulation.resetAccount() }
             }
         }
     }

@@ -1,6 +1,6 @@
 # HCG ONE UNLEASHED — Open Decisions
 
-Status: **Phase 1 draft, updated after M1 (2026-10-30)**; see "Status after M1" below. Each decision belongs to the founder. "Recommendation" is a **PROPOSAL**, not a decision.
+Status: **Phase 1 draft, updated after M1 and after M2 Stage 1 (2026-10-30)**; see the status sections below. Each decision belongs to the founder. "Recommendation" is a **PROPOSAL**, not a decision.
 "Blocks" names the earliest milestone that needs the answer (see `DEVELOPMENT_ROADMAP.md`).
 
 | ID | Decision | Options | Recommendation | Blocks |
@@ -64,6 +64,26 @@ New decisions raised by M2.0:
 | **D-31** | Approved UNLEASHED branding assets | Deliver icon master, mark, wordmark, colours (and fonts, if any) as listed in M1_AUDIT §5 | **Deliver before M2.6.** The app picks up the mark and wordmark automatically once installed under the documented names. | M2.6 |
 | **D-32** | Simulated margin | No margin model · fixed initial margin per contract | **Simple per-contract initial margin**, values set by the founder | M2.1 |
 | **D-33** | Do user orders consume simulated liquidity? | No (M1 behaviour) · yes, orders remove book size | **Founder decision.** "Yes" is more realistic but means the user's own trading changes the simulated market. | M2.1 |
+
+## Status after M2 Stage 1 (2026-10-30)
+
+| ID | Status |
+|---|---|
+| D-20 | **Unchanged, respected:** there are no single-key order hotkeys. ⌘↩ places the order shown in the ticket; menu shortcuts exist only for ticket navigation (⇧⌘T) and Flatten All (⌥⇧⌘F). |
+| D-29 | **Implemented for the session:** markets and simulated account persist locally across launches (`TRADING_ENGINE.md` §6). Progress and layouts come in later stages. |
+| D-32 | **Implemented with placeholder values:** fixed initial margin per contract (GC $10,000, NQ $20,000, ES $15,000, CL $6,000), editable in Settings → Account. **The founder sets the real simulation values.** |
+| D-33 | **Unchanged (No):** orders do not change the simulated market (tested). The consequence is documented as limitation L-1. New option below. |
+| D-31 | **Candidate assets received:** the founder supplied an HCG metallic logo and an "HCG ONE UNLEASHED" app icon with the M2 brief. They are **not installed yet** (branding is Stage 4). Needs confirmation that they are the approved final assets, and the master files at full resolution. |
+| D-30 | **Still open.** The supplied app icon reads "HCG ONE UNLEASHED" (no colon), matching the current app, while the M2 brief writes "HCG ONE: UNLEASHED". |
+
+Decision options added or raised by Stage 1:
+
+| ID | Decision | Options | Recommendation | Blocks |
+|---|---|---|---|---|
+| **D-33c** | Middle option for D-33 | Orders consume the displayed size **within the update they fill in** (so two of your own orders cannot both take the same 10 lots, and repeated market orders while paused walk deeper), without changing the market path | **Recommended** if D-33 stays "No". It fixes L-1 without making your trading alter the simulated market. Small change: per-update consumption state in the account. | Stage 3 |
+| **D-34** | Limit-order queue model | Fill up to the displayed size on touch (Stage 1) · a simple queue-position estimate | **Queue estimate with the DOM in Stage 3**, so touch fills are not optimistic | Stage 3 |
+| **D-35** | Margin calls and auto-liquidation | None (Stage 1: only new risk-increasing orders are rejected) · warning only · automatic liquidation below a maintenance level | **Warning first, liquidation as an option**, set by the founder. Liquidation rules are a product decision, not an engine default. | Stage 5 |
+| **D-36** | Simulated session clock | Start 2026-01-05 14:30 UTC, 1 s per update, shown in UTC (Stage 1) · start at the user's chosen session · show local time | **Keep UTC** until scenarios need a specific session. Local time would make the same session read differently in Oslo and New York. | Stage 2 (charts' time axis) |
 
 ## Decisions already made (from the founder brief, recorded for traceability)
 

@@ -91,6 +91,19 @@ Until one of these exists, Mac code from this environment is **written, not buil
 
 The full M2 scope below is now broken into M2.1–M2.6 in `M2_IMPLEMENTATION_PLAN.md`. **None of it starts without founder authorization.**
 
+## M2 Stage 1: Simulated trading account and order engine (2026-10-30)
+
+The founder authorized M2 ("Functional Trading Platform, Order Flow Workstation & Futuristic HCG Command Center") in five stages and asked for a report after Stage 1, before Stage 2 starts. Stage 1 corresponds to M2.1 + M2.2 in `M2_IMPLEMENTATION_PLAN.md`.
+
+**Status: implemented on branch `feature/m2-stage1-trading-engine`, not committed. Awaiting the founder's build and review.**
+- Engine and rules: `TRADING_ENGINE.md`. Report, test evidence and manual QA checklist: `M2_STAGE1_REPORT.md`.
+- HCGKit: 92 tests pass (Swift 6.2.4 on Linux). **The app target was not compiled here.**
+- Next stages, each only after the previous report is reviewed:
+  - Stage 2: charting (timeframes aggregated from timestamped trades; indicators against reference data).
+  - Stage 3: Order Flow workstation window.
+  - Stage 4: HCG Command Center Home and branding.
+  - Stage 5: workspaces, skins, multi-window, ⌘K, export, performance.
+
 ## M2: Trading workstation v1
 
 **Goal:** the desktop differentiator, as a usable simulated workstation.

@@ -8,7 +8,7 @@ import Foundation
 ///
 /// These are contract specifications only. All market activity in the app is
 /// simulated — no exchange, broker or live market feed is involved.
-public enum MarketSymbol: String, CaseIterable, Codable, Sendable, Identifiable, Comparable {
+public enum MarketSymbol: String, CaseIterable, Codable, CodingKeyRepresentable, Sendable, Identifiable, Comparable {
     case gc, nq, es, cl
 
     public var id: String { rawValue }
@@ -68,6 +68,12 @@ public struct InstrumentSpec: Codable, Hashable, Sendable {
     public func price(ticks: Int64) -> Double {
         if let perUnit = ticksPerUnit { return Double(ticks) / perUnit }
         return Double(ticks) * tickSize
+    }
+
+    /// Price of a fractional number of ticks (e.g. a volume-weighted fill).
+    public func price(fractionalTicks: Double) -> Double {
+        if let perUnit = ticksPerUnit { return fractionalTicks / perUnit }
+        return fractionalTicks * tickSize
     }
 
     /// Nearest whole number of ticks for a price.

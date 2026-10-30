@@ -96,6 +96,7 @@ private struct OrderFlowPanels: View {
             }
             Divider()
             SimulatedTicketBar(snapshot: snapshot, account: frame.account,
+                               unrealizedPnL: frame.unrealizedPnL(symbol),
                                equity: frame.equity, message: simulation.lastOrderMessage)
         }
     }

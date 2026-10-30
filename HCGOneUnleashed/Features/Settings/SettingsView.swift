@@ -9,10 +9,12 @@ struct SettingsView: View {
         TabView {
             SimulationSettingsTab()
                 .tabItem { Label("Simulation", systemImage: "waveform.path.ecg") }
+            AccountSettingsTab()
+                .tabItem { Label("Account", systemImage: "banknote") }
             AboutSettingsTab()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 500)
+        .frame(width: 580)
     }
 }
 
@@ -40,12 +42,12 @@ private struct SimulationSettingsTab: View {
 
             Section {
                 Button("Reset Simulated Session…") { confirmReset = true }
-                    .confirmationDialog("Reset the simulated session?", isPresented: $confirmReset) {
-                        Button("Reset", role: .destructive) {
+                    .confirmationDialog(Confirmation.resetSessionTitle, isPresented: $confirmReset) {
+                        Button("Reset Session", role: .destructive) {
                             Task { await simulation.reset() }
                         }
                     } message: {
-                        Text("All four simulated markets restart and the simulated account returns to its starting balance. Nothing outside this Mac is affected.")
+                        Text(Confirmation.resetSessionMessage)
                     }
             }
         }
@@ -68,6 +70,7 @@ private struct AboutSettingsTab: View {
                 GridRow { label("Version"); value(AppInfo.versionDescription) }
                 GridRow { label("Build"); value(AppInfo.developmentStage) }
                 GridRow { label("Market data"); value("Simulated only. No exchange, broker or live feed.") }
+                GridRow { label("Trading"); value("Simulated account only. No order ever leaves this Mac.") }
                 GridRow { label("Network"); value("None. This build makes no network connections.") }
                 GridRow { label("Account"); value("No sign-in in this build.") }
                 GridRow { label("Bundle ID"); value(AppInfo.bundleIdentifier) }
@@ -98,7 +101,7 @@ struct SettingsPage: View {
                 .accessibilityHidden(true)
             Text("Settings")
                 .font(HCGFont.screenTitle)
-            Text("Simulation preferences and build information live in the Settings window.")
+            Text("Simulation preferences, simulated account costs and limits, and build information live in the Settings window.")
                 .font(.callout)
                 .foregroundStyle(HCGColor.textSecondary)
             SettingsLink {

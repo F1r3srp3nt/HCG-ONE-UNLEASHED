@@ -47,7 +47,7 @@ struct HomeView: View {
                 Text(AppInfo.developmentStage)
                     .font(.headline)
                     .foregroundStyle(HCGColor.textPrimary)
-                Text("This build runs entirely on this Mac. There is no sign-in, no HCG account data and no network connection. All market data is simulated.")
+                Text("This build runs entirely on this Mac. There is no sign-in, no HCG account data and no network connection. All market data and all trading are simulated.")
                     .font(.callout)
                     .foregroundStyle(HCGColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

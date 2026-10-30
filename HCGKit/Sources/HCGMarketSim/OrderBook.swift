@@ -1,7 +1,7 @@
 import Foundation
 
 /// Resting liquidity at one price level of the simulated book.
-public struct BookLevel: Hashable, Sendable, Identifiable {
+public struct BookLevel: Hashable, Sendable, Identifiable, Codable {
     /// Price in whole ticks (price = priceTicks × tickSize).
     public let priceTicks: Int64
     /// Contracts resting at this level.
@@ -30,7 +30,7 @@ public enum BookSide: String, Codable, Sendable, Hashable {
 /// This replaces HCG ONE's `advancePrice` book shift, which removed the best
 /// levels and appended new ones next to the worst, so every price move
 /// widened the spread (docs/IOS_COMPATIBILITY.md §5.1).
-struct OrderBook: Sendable, Equatable {
+struct OrderBook: Sendable, Equatable, Codable {
     private(set) var bids: [BookLevel]
     private(set) var asks: [BookLevel]
     let depth: Int
