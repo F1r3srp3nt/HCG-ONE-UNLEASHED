@@ -1,3 +1,4 @@
+import HCGAppModel
 import HCGDesignSystem
 import HCGDomain
 import SwiftUI
@@ -31,8 +32,7 @@ struct MainWindow: View {
     }
 
     private func restoreState() {
-        navigation.selection = SidebarItem(rawValue: storedSelection) ?? .home
-        navigation.orderFlowSymbol = MarketSymbol(rawValue: storedSymbol) ?? .gc
+        navigation.restore(selection: storedSelection, symbol: storedSymbol)
     }
 }
 
@@ -69,9 +69,11 @@ private struct Sidebar: View {
 
 private struct BuildFooter: View {
     var body: some View {
+        // Stacked, not side by side: both badges together are wider than the
+        // sidebar's minimum width and would clip.
         VStack(alignment: .leading, spacing: 6) {
             Divider()
-            HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 StatusBadge("Dev build", tone: .warning)
                 SimulatedDataBadge()
             }

@@ -1,3 +1,4 @@
+import HCGAppModel
 import HCGDomain
 import HCGMarketSim
 import SwiftUI
@@ -9,6 +10,10 @@ struct AppCommands: Commands {
 
     var body: some Commands {
         SidebarCommands()
+
+        // The app has nothing to print. Removing the default Page Setup… (⇧⌘P)
+        // and Print… items also frees ⇧⌘P for Play/Pause Simulation.
+        CommandGroup(replacing: .printItem) {}
 
         CommandMenu("Go") {
             ForEach(PrimaryArea.allCases) { area in

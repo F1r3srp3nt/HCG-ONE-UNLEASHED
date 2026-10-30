@@ -86,6 +86,34 @@ struct SimulatedBrokerTests {
         #expect(account == SimulatedAccount())
     }
 
+    @Test("The full order-size range is accepted at both bounds")
+    func quantityBounds() throws {
+        let s = snapshot()
+        var account = SimulatedAccount()
+        try account.execute(MarketOrder(symbol: .gc, side: .buy, quantity: 1), against: s, commissionPerContract: 0)
+        try account.execute(MarketOrder(symbol: .gc, side: .buy, quantity: MarketOrder.maximumQuantity),
+                            against: s, commissionPerContract: 0)
+        #expect(account.position(.gc)?.quantity == 1 + MarketOrder.maximumQuantity)
+        #expect(throws: OrderRejection.invalidQuantity) {
+            try account.execute(MarketOrder(symbol: .gc, side: .sell, quantity: -1), against: s, commissionPerContract: 0)
+        }
+    }
+
+    @Test("Orders larger than the visible book are rejected for insufficient liquidity")
+    func insufficientLiquidity() {
+        let thin = SimulationProfile(symbol: .es, sessionStartPrice: 5_480, baseSpreadTicks: 1, maxExtraSpreadTicks: 0,
+                                     spreadSensitivity: 0, bookDepth: 4, restingSize: 1...1,
+                                     commissionPerContract: 2, updatesPerBar: 10)
+        let market = MarketSimulator(symbol: .es, seed: 1, profile: thin)
+        let s = market.snapshot(frameSequence: 0)
+        #expect(s.asks.reduce(0) { $0 + $1.size } == 4)
+        var account = SimulatedAccount()
+        #expect(throws: OrderRejection.insufficientLiquidity) {
+            try account.execute(MarketOrder(symbol: .es, side: .buy, quantity: 5), against: s, commissionPerContract: 2)
+        }
+        #expect(account == SimulatedAccount(), "a rejected order changes nothing")
+    }
+
     @Test("Unrealised P&L marks longs at the bid and shorts at the ask")
     func unrealisedMarks() throws {
         let s = snapshot(.nq)
@@ -108,14 +136,34 @@ struct ImmediateTicker: SimulationTicker {
     }
 }
 
+/// Records every requested wait and blocks until cancelled, so a test can see
+/// exactly which interval the playback loop is waiting on.
+final class RecordingTicker: SimulationTicker, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [Duration] = []
+
+    var requests: [Duration] {
+        lock.withLock { recorded }
+    }
+
+    func wait(for duration: Duration) async throws {
+        lock.withLock { recorded.append(duration) }
+        while true {
+            try Task.checkCancellation()
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+}
+
 @MainActor
 @Suite("Simulation host — playback")
 struct SimulationHostTests {
-    /// Waits (bounded) until `condition` holds, yielding to the playback loop.
+    /// Waits (bounded, about 5 s) until `condition` holds, letting the
+    /// playback loop run in between.
     private func waitUntil(_ condition: () -> Bool) async -> Bool {
-        for _ in 0..<20_000 {
+        for _ in 0..<5_000 {
             if condition() { return true }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         return condition()
     }
@@ -176,6 +224,41 @@ struct SimulationHostTests {
         #expect(host.speed == .quarter)
         #expect(SimulationSpeed.normal.interval == .milliseconds(500))
         #expect(SimulationSpeed.octuple.interval == .milliseconds(63))
+    }
+
+    @Test("A speed change applies to the pending wait immediately")
+    func speedChangeIsImmediate() async {
+        let ticker = RecordingTicker()
+        let host = SimulationHost(seed: 2, speed: .quarter, ticker: ticker)
+        host.play()
+        #expect(await waitUntil { ticker.requests.count == 1 })
+        #expect(ticker.requests.first == SimulationSpeed.quarter.interval)
+
+        host.setSpeed(.octuple)
+        #expect(await waitUntil { ticker.requests.count == 2 }, "the 2-second wait must be abandoned")
+        #expect(ticker.requests.last == SimulationSpeed.octuple.interval)
+        #expect(host.isPlaying)
+
+        host.setSpeed(.octuple) // unchanged speed: no restart
+        for _ in 0..<200 { await Task.yield() }
+        #expect(ticker.requests.count == 2)
+        await host.pauseAndWait()
+        #expect(host.frame.sequence == 0, "no update completed while waiting")
+    }
+
+    @Test("Reset keeps playback running when it was running")
+    func resetPreservesPlayback() async {
+        let host = SimulationHost(seed: 8, ticker: ImmediateTicker())
+        host.play()
+        _ = await waitUntil { host.frame.sequence >= 10 }
+        await host.reset(seed: 8)
+        #expect(host.isPlaying, "reset must not silently stop the clock")
+        #expect(await waitUntil { host.frame.sequence >= 5 })
+        await host.pauseAndWait()
+
+        await host.reset(seed: 8)
+        #expect(!host.isPlaying, "a paused session stays paused after reset")
+        #expect(host.frame.sequence == 0)
     }
 
     @Test("Orders and resets publish through the same frame")

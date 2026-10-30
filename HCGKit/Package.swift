@@ -5,6 +5,7 @@ import PackageDescription
 //
 // - HCGDomain:       value types (instruments, product catalog, formatting). Foundation only.
 // - HCGMarketSim:    deterministic simulated market, order book, broker, host. Foundation + Observation.
+// - HCGAppModel:     app navigation model (destinations, Go menu, per-window state). Foundation + Observation.
 // - HCGDesignSystem: SwiftUI tokens and components for macOS. Compiles to an empty module elsewhere.
 let package = Package(
     name: "HCGKit",
@@ -12,14 +13,17 @@ let package = Package(
     products: [
         .library(name: "HCGDomain", targets: ["HCGDomain"]),
         .library(name: "HCGMarketSim", targets: ["HCGMarketSim"]),
+        .library(name: "HCGAppModel", targets: ["HCGAppModel"]),
         .library(name: "HCGDesignSystem", targets: ["HCGDesignSystem"]),
     ],
     targets: [
         .target(name: "HCGDomain"),
         .target(name: "HCGMarketSim", dependencies: ["HCGDomain"]),
+        .target(name: "HCGAppModel", dependencies: ["HCGDomain"]),
         .target(name: "HCGDesignSystem", dependencies: ["HCGDomain"]),
         .testTarget(name: "HCGDomainTests", dependencies: ["HCGDomain"]),
         .testTarget(name: "HCGMarketSimTests", dependencies: ["HCGMarketSim", "HCGDomain"]),
+        .testTarget(name: "HCGAppModelTests", dependencies: ["HCGAppModel", "HCGDomain"]),
     ],
     swiftLanguageModes: [.v6]
 )

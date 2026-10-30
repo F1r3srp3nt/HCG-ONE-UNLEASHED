@@ -53,8 +53,17 @@ New decisions raised by M1:
 
 | ID | Decision | Options | Recommendation | Blocks |
 |---|---|---|---|---|
-| **D-28** | Simulated spread model parameters | Keep M1 values (1-tick base; max widening GC 6, NQ 6, ES 4, CL 8) · tune with trading expertise | **Founder review in M2.** These are simulation choices, not market statistics. | M2 |
+| **D-28** | Simulated spread and volatility model parameters | Keep M1 values (1-tick base; max widening GC 6, NQ 6, ES 4, CL 8; volatility identical in ticks for all four) · tune per instrument with trading expertise | **Founder review in M2.** M2.0 measured that the uniform tick volatility makes CL move about 10× more in % terms than NQ (M1_AUDIT SIM-4). These are simulation choices, not market statistics. | M2.1 |
 | **D-29** | Persist simulation state across launches | Fresh session each launch (M1) · persist the account, progress and layouts | **Persist the account, progress and layouts in M2** (local only) | M2 |
+
+New decisions raised by M2.0:
+
+| ID | Decision | Options | Recommendation | Blocks |
+|---|---|---|---|---|
+| **D-30** | Product name punctuation | "HCG ONE UNLEASHED" (current app) · "HCG ONE: UNLEASHED" (as written in the M2.0 brief) | **Founder to confirm.** It changes the bundle display name, wordmark, window title and About. | M2.6 |
+| **D-31** | Approved UNLEASHED branding assets | Deliver icon master, mark, wordmark, colours (and fonts, if any) as listed in M1_AUDIT §5 | **Deliver before M2.6.** The app picks up the mark and wordmark automatically once installed under the documented names. | M2.6 |
+| **D-32** | Simulated margin | No margin model · fixed initial margin per contract | **Simple per-contract initial margin**, values set by the founder | M2.1 |
+| **D-33** | Do user orders consume simulated liquidity? | No (M1 behaviour) · yes, orders remove book size | **Founder decision.** "Yes" is more realistic but means the user's own trading changes the simulated market. | M2.1 |
 
 ## Decisions already made (from the founder brief, recorded for traceability)
 

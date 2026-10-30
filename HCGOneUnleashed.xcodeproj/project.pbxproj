@@ -10,6 +10,7 @@
 		4C4700000000000000000014 /* HCGDomain in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000011 /* HCGDomain */; };
 		4C4700000000000000000015 /* HCGMarketSim in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000012 /* HCGMarketSim */; };
 		4C4700000000000000000016 /* HCGDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000013 /* HCGDesignSystem */; };
+		4C4700000000000000000018 /* HCGAppModel in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000017 /* HCGAppModel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 				4C4700000000000000000014 /* HCGDomain in Frameworks */,
 				4C4700000000000000000015 /* HCGMarketSim in Frameworks */,
 				4C4700000000000000000016 /* HCGDesignSystem in Frameworks */,
+				4C4700000000000000000018 /* HCGAppModel in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +79,7 @@
 				4C4700000000000000000011 /* HCGDomain */,
 				4C4700000000000000000012 /* HCGMarketSim */,
 				4C4700000000000000000013 /* HCGDesignSystem */,
+				4C4700000000000000000017 /* HCGAppModel */,
 			);
 			productName = HCGOneUnleashed;
 			productReference = 4C4700000000000000000005 /* HCGOneUnleashed.app */;
@@ -364,6 +367,10 @@
 		4C4700000000000000000013 /* HCGDesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HCGDesignSystem;
+		};
+		4C4700000000000000000017 /* HCGAppModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HCGAppModel;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

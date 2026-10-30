@@ -2,11 +2,11 @@
 
 The native macOS edition of HCG ONE by Hakmi Capital Group.
 
-**Status: development build, milestone M1.** Native shell, simulated market engine and the first trading screen (Order Flow).
+**Status: development build, M2.0 stabilization** (audit and repair of M1). Native shell, simulated market engine and the first trading screen (Order Flow).
 - No sign-in, no network connections, no payments or licensing.
 - **All market data is simulated.**
 
-Planning and status documents are in [`docs/`](docs). The M1 report is [`docs/M1_IMPLEMENTATION_REPORT.md`](docs/M1_IMPLEMENTATION_REPORT.md).
+Planning and status documents are in [`docs/`](docs). Start with [`docs/M1_AUDIT.md`](docs/M1_AUDIT.md), [`docs/M2_TEST_RESULTS.md`](docs/M2_TEST_RESULTS.md) and [`docs/M2_IMPLEMENTATION_PLAN.md`](docs/M2_IMPLEMENTATION_PLAN.md).
 
 ## Requirements
 
@@ -71,15 +71,16 @@ HCGOneUnleashed.xcodeproj    macOS app project (one target, shared scheme)
 HCGOneUnleashed/
   App/                       entry point, main window, navigation, menu commands
   Features/                  Home, Trading/OrderFlow, Settings
-  Components/                shared app views (unavailable-section state)
+  Components/                shared app views (unavailable-section state, brand mark/wordmark)
   Platform/                  bundle information
   Resources/                 asset catalog (temporary DEV icon), entitlements
 HCGKit/                      local Swift package
   Sources/HCGDomain/         instruments, formatting, HCG product catalog
   Sources/HCGMarketSim/      simulated market, order book, broker, clock, GEX model
+  Sources/HCGAppModel/       navigation model (destinations, Go menu, window state)
   Sources/HCGDesignSystem/   colors, typography, panels, buttons, badges
   Tests/                     Swift Testing suites
-docs/                        architecture, security, roadmap, decisions, M1 report
+docs/                        architecture, security, roadmap, decisions, M1 report, M1 audit, M2 plan and test results
 ```
 
 ## Boundaries

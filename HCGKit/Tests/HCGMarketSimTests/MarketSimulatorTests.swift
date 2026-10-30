@@ -306,4 +306,41 @@ struct SimulationStateTests {
         #expect(violations == 0)
         #expect(state.sequence == 10_000)
     }
+
+    /// Prolonged execution: 50,000 updates of all four markets. Checks the
+    /// invariants on every update, that every buffer stays bounded (no
+    /// unbounded memory growth), and that prices stay positive and finite.
+    /// Also reports the measured cost per update.
+    @Test("50,000-update run keeps markets valid with bounded memory")
+    func prolongedRunIsStable() {
+        var state = SimulationState(seed: 4242)
+        let clock = ContinuousClock()
+        var problems = 0
+        let start = clock.now
+        for _ in 0..<50_000 {
+            state.advance()
+            for market in state.markets.values where !market.bookViolations().isEmpty { problems += 1 }
+        }
+        let elapsed = clock.now - start
+        #expect(problems == 0)
+        for (symbol, market) in state.markets {
+            #expect(market.tape.count <= MarketSimulator.tapeLimit, "\(symbol) tape bounded")
+            #expect(market.bars.count <= MarketSimulator.barLimit, "\(symbol) bars bounded")
+            let s = market.snapshot(frameSequence: state.sequence)
+            #expect(s.recentTrades.count <= MarketSimulator.snapshotTrades)
+            #expect(s.last > 0 && s.last.isFinite && s.bid > 0 && s.ask.isFinite)
+        }
+        print("[measure] 50,000 updates × 4 markets (with invariant checks): \(elapsed), \(elapsed / 50_000) per update")
+    }
+
+    @Test("Account history stays bounded under sustained order entry")
+    func fillHistoryBounded() throws {
+        var state = SimulationState(seed: 9)
+        for i in 0..<1_000 {
+            state.advance()
+            try state.submit(MarketOrder(symbol: .es, side: i.isMultiple(of: 2) ? .buy : .sell, quantity: 1))
+        }
+        #expect(state.account.fills.count == SimulatedAccount.fillHistoryLimit)
+        #expect(state.account.position(.es) == nil, "alternating buys and sells end flat")
+    }
 }

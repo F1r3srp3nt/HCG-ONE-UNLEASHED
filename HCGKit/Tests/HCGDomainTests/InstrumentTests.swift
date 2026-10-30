@@ -33,6 +33,25 @@ struct InstrumentTests {
         }
     }
 
+    @Test("Tick prices are the closest Double to the exact decimal value")
+    func exactTickPrices() {
+        #expect(MarketSymbol.gc.spec.price(ticks: 26_527) == 2652.7)
+        #expect(MarketSymbol.gc.spec.price(ticks: 26_891) == 2689.1)
+        #expect(MarketSymbol.nq.spec.price(ticks: 79_263) == 19_815.75)
+        #expect(MarketSymbol.es.spec.price(ticks: 22_555) == 5_638.75)
+        #expect(MarketSymbol.cl.spec.price(ticks: 7_642) == 76.42)
+    }
+
+    @Test("Off-tick prices round to the nearest valid tick", arguments: MarketSymbol.allCases)
+    func roundingToTick(_ symbol: MarketSymbol) {
+        let spec = symbol.spec
+        let base = spec.price(ticks: 10_000)
+        #expect(spec.roundedToTick(base + spec.tickSize * 0.4) == base)
+        #expect(spec.roundedToTick(base + spec.tickSize * 0.6) == spec.price(ticks: 10_001))
+        #expect(spec.roundedToTick(base - spec.tickSize * 0.6) == spec.price(ticks: 9_999))
+        #expect(spec.ticks(price: spec.roundedToTick(base + spec.tickSize * 0.6)) == 10_001)
+    }
+
     @Test("Display decimals cover the tick size")
     func priceDecimals() {
         #expect(MarketSymbol.gc.spec.priceDecimals == 2)

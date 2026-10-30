@@ -49,6 +49,16 @@
                ReferencedContainer = "container:HCGKit">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "HCGAppModelTests"
+               BuildableName = "HCGAppModelTests"
+               BlueprintName = "HCGAppModelTests"
+               ReferencedContainer = "container:HCGKit">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

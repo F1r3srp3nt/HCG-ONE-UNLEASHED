@@ -9,7 +9,9 @@ struct DepthLadderPanel: View {
     let snapshot: MarketSnapshot
     let maxLevelsPerSide: Int
 
-    @State private var hoveredPrice: Int64?
+    /// Hovered row by position (not by price), so the highlight stays under
+    /// the pointer while the simulated book moves.
+    @State private var hoveredRow: Int?
 
     private let rowHeight: CGFloat = 19
     private let priceColumnWidth: CGFloat = 92
@@ -26,14 +28,19 @@ struct DepthLadderPanel: View {
                 let ladder = DepthLadder(snapshot: snapshot, levelsPerSide: levels(for: geometry.size.height))
                 let sideWidth = max(0, (geometry.size.width - priceColumnWidth) / 2)
                 VStack(spacing: 0) {
-                    ForEach(ladder.rows) { row in
-                        LadderRow(row: row, maxSize: ladder.maxVisibleSize, decimals: snapshot.spec.priceDecimals,
+                    ForEach(ladder.rows.indices, id: \.self) { index in
+                        LadderRow(row: ladder.rows[index], maxSize: ladder.maxVisibleSize, decimals: snapshot.spec.priceDecimals,
                                   sideWidth: sideWidth, priceWidth: priceColumnWidth, height: rowHeight,
-                                  isHovered: hoveredPrice == row.priceTicks)
-                            .onHover { inside in
-                                if inside { hoveredPrice = row.priceTicks }
-                                else if hoveredPrice == row.priceTicks { hoveredPrice = nil }
-                            }
+                                  isHovered: hoveredRow == index)
+                    }
+                }
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        let index = Int(location.y / rowHeight)
+                        hoveredRow = (0..<ladder.rows.count).contains(index) ? index : nil
+                    case .ended:
+                        hoveredRow = nil
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -101,9 +108,11 @@ private struct LadderRow: View {
         }
         .frame(height: height)
         .background(rowBackground)
-        .help(tooltip)
+        // Tooltip text must not change every update (sizes do), or macOS keeps
+        // dismissing it; VoiceOver still gets the live size.
+        .help(stableTooltip)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(tooltip)
+        .accessibilityLabel(accessibilityText)
     }
 
     private func sizeCell(_ size: Int?, color: Color, alignment: Alignment, isBest: Bool) -> some View {
@@ -142,10 +151,17 @@ private struct LadderRow: View {
         return .clear
     }
 
-    private var tooltip: String {
+    private var stableTooltip: String {
         let price = PriceFormat.price(row.price, decimals: decimals)
-        if let bid = row.bidSize { return "Bid \(bid) contracts at \(price)\(row.isBestBid ? " — best bid" : "") (simulated)" }
-        if let ask = row.askSize { return "Ask \(ask) contracts at \(price)\(row.isBestAsk ? " — best ask" : "") (simulated)" }
+        if row.bidSize != nil { return "Simulated resting bids at \(price)" }
+        if row.askSize != nil { return "Simulated resting offers at \(price)" }
         return "\(price) — inside the spread, no resting orders (simulated)"
+    }
+
+    private var accessibilityText: String {
+        let price = PriceFormat.price(row.price, decimals: decimals)
+        if let bid = row.bidSize { return "Bid \(bid) contracts at \(price)\(row.isBestBid ? ", best bid" : ""), simulated" }
+        if let ask = row.askSize { return "Ask \(ask) contracts at \(price)\(row.isBestAsk ? ", best ask" : ""), simulated" }
+        return "\(price), inside the spread, no resting orders, simulated"
     }
 }

@@ -32,8 +32,8 @@ public struct MarketSimulator: Sendable, Equatable {
     private(set) var book: OrderBook
     private var extraSpreadTicks = 0
 
-    private var tape: [TapeTrade] = []
-    private var bars: [PriceBar] = []
+    private(set) var tape: [TapeTrade] = []
+    private(set) var bars: [PriceBar] = []
     private var barUpdatesLeft = 0
     private var tradeCounter = 0
     private var barCounter = 0

@@ -55,14 +55,30 @@ public struct InstrumentSpec: Codable, Hashable, Sendable {
         return max(2, needed)
     }
 
-    /// Price of a whole number of ticks.
+    /// Ticks per 1.0 of price (10 for GC, 4 for NQ/ES, 100 for CL) when the
+    /// tick size divides 1.0 exactly; otherwise `nil`.
+    private var ticksPerUnit: Double? {
+        guard tickSize > 0, tickSize.isFinite else { return nil }
+        let inverse = (1 / tickSize).rounded()
+        return abs(inverse * tickSize - 1) < 1e-12 ? inverse : nil
+    }
+
+    /// Price of a whole number of ticks, as the closest `Double` to the exact
+    /// decimal value (26_527 GC ticks → 2652.7, not 2652.7000000000003).
     public func price(ticks: Int64) -> Double {
-        Double(ticks) * tickSize
+        if let perUnit = ticksPerUnit { return Double(ticks) / perUnit }
+        return Double(ticks) * tickSize
     }
 
     /// Nearest whole number of ticks for a price.
     public func ticks(price: Double) -> Int64 {
-        Int64((price / tickSize).rounded())
+        if let perUnit = ticksPerUnit { return Int64((price * perUnit).rounded()) }
+        return Int64((price / tickSize).rounded())
+    }
+
+    /// `price` rounded to the nearest valid tick.
+    public func roundedToTick(_ price: Double) -> Double {
+        self.price(ticks: ticks(price: price))
     }
 
     public static func spec(for symbol: MarketSymbol) -> InstrumentSpec {

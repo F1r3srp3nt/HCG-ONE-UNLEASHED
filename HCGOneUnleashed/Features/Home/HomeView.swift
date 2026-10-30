@@ -1,3 +1,4 @@
+import HCGAppModel
 import HCGDesignSystem
 import HCGDomain
 import HCGMarketSim
@@ -6,15 +7,12 @@ import SwiftUI
 /// Home: development-build overview, simulated markets and the HCG ecosystem.
 /// Shows no account, activity or server content — none exists in this build.
 struct HomeView: View {
-    @Environment(SimulationHost.self) private var simulation
-    @Environment(NavigationModel.self) private var navigation
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
                 buildNotice
-                markets
+                SimulatedMarketsSection()
                 HStack(alignment: .top, spacing: 18) {
                     ecosystem
                     activity
@@ -29,15 +27,9 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            Image("HCGLogo")
-                .resizable()
-                .interpolation(.high)
-                .frame(width: 52, height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(HCGColor.separator, lineWidth: 1))
-                .accessibilityLabel("Hakmi Capital Group logo")
+            BrandMark(size: 52)
             VStack(alignment: .leading, spacing: 4) {
-                HCGWordmark(size: 28)
+                BrandWordmark(size: 28)
                 Text(HCGEcosystem.companyName)
                     .font(.callout)
                     .foregroundStyle(HCGColor.textSecondary)
@@ -52,7 +44,7 @@ struct HomeView: View {
                 .font(.system(size: 15, weight: .medium))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Development build — milestone M1")
+                Text(AppInfo.developmentStage)
                     .font(.headline)
                     .foregroundStyle(HCGColor.textPrimary)
                 Text("This build runs entirely on this Mac. There is no sign-in, no HCG account data and no network connection. All market data is simulated.")
@@ -65,20 +57,6 @@ struct HomeView: View {
         .hcgPanel()
     }
 
-    private var markets: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            PanelHeader("Simulated markets", detail: simulation.isPlaying ? "Running · \(simulation.speed.label)" : "Paused") {
-                SimulatedDataBadge()
-            }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
-                ForEach(MarketSymbol.allCases) { symbol in
-                    MarketCard(snapshot: simulation.frame[symbol]) {
-                        navigation.showOrderFlow(symbol)
-                    }
-                }
-            }
-        }
-    }
 
     private var ecosystem: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -108,6 +86,29 @@ struct HomeView: View {
             .hcgPanel()
         }
         .frame(width: 320, alignment: .topLeading)
+    }
+}
+
+/// The only part of Home that reads the simulation frame, so the rest of the
+/// page is not re-rendered on every market update.
+private struct SimulatedMarketsSection: View {
+    @Environment(SimulationHost.self) private var simulation
+    @Environment(NavigationModel.self) private var navigation
+
+    var body: some View {
+        let frame = simulation.frame
+        VStack(alignment: .leading, spacing: 10) {
+            PanelHeader("Simulated markets", detail: simulation.isPlaying ? "Running · \(simulation.speed.label)" : "Paused") {
+                SimulatedDataBadge()
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+                ForEach(MarketSymbol.allCases) { symbol in
+                    MarketCard(snapshot: frame[symbol]) {
+                        navigation.showOrderFlow(symbol)
+                    }
+                }
+            }
+        }
     }
 }
 

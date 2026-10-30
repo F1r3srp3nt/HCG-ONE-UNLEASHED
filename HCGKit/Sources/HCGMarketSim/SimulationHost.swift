@@ -111,9 +111,20 @@ public final class SimulationHost {
         isPlaying ? pause() : play()
     }
 
-    public func setSpeed(_ newSpeed: SimulationSpeed) { speed = newSpeed }
-    public func faster() { if let next = speed.faster { speed = next } }
-    public func slower() { if let next = speed.slower { speed = next } }
+    /// Changes the playback speed. While playing, the pending wait is
+    /// restarted so the new speed applies immediately (at 0.25× the old wait
+    /// could otherwise delay it by up to two seconds).
+    public func setSpeed(_ newSpeed: SimulationSpeed) {
+        guard newSpeed != speed else { return }
+        speed = newSpeed
+        if isPlaying {
+            pause()
+            play()
+        }
+    }
+
+    public func faster() { if let next = speed.faster { setSpeed(next) } }
+    public func slower() { if let next = speed.slower { setSpeed(next) } }
 
     /// One manual update while paused.
     public func step() async {
@@ -121,10 +132,14 @@ public final class SimulationHost {
         publish(await engine.advance())
     }
 
+    /// Restarts every market and the simulated account. Playback resumes if
+    /// it was running, so a reset never silently leaves the clock stopped.
     public func reset(seed: UInt64 = SimulationState.defaultSeed) async {
+        let wasPlaying = isPlaying
         await pauseAndWait()
         lastOrderMessage = nil
         publish(await engine.reset(seed: seed))
+        if wasPlaying { play() }
     }
 
     public func load(_ scenario: MarketScenario) async {

@@ -82,6 +82,15 @@ Until one of these exists, Mac code from this environment is **written, not buil
 | GC spread stays at one tick through a 10,000-tick soak | **Passed** (executed) |
 | Founder review of look and feel | Pending |
 
+## M2.0: M1 audit, repair and stabilization (2026-10-30)
+
+**Status: implemented on branch `feature/m2.0-audit-stabilization`, not committed. Awaiting the founder's build and review.**
+- Audit: `M1_AUDIT.md` (12 destinations, 17 findings: 13 fixed, 4 open).
+- Tests: `M2_TEST_RESULTS.md` (58 tests, 91 cases; executed on Linux with Swift 6.2.4; the app target was not compiled here).
+- The founder's earlier build confirmed that M1 compiled and launched on the Mac.
+
+The full M2 scope below is now broken into M2.1–M2.6 in `M2_IMPLEMENTATION_PLAN.md`. **None of it starts without founder authorization.**
+
 ## M2: Trading workstation v1
 
 **Goal:** the desktop differentiator, as a usable simulated workstation.

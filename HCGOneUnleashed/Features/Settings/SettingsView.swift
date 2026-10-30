@@ -57,13 +57,16 @@ private struct SimulationSettingsTab: View {
 private struct AboutSettingsTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HCGWordmark(size: 24)
+            HStack(spacing: 12) {
+                BrandMark(size: 40)
+                BrandWordmark(size: 24)
+            }
             Text(HCGEcosystem.companyName)
                 .foregroundStyle(HCGColor.textSecondary)
 
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                 GridRow { label("Version"); value(AppInfo.versionDescription) }
-                GridRow { label("Build"); value("Development build — milestone M1") }
+                GridRow { label("Build"); value(AppInfo.developmentStage) }
                 GridRow { label("Market data"); value("Simulated only. No exchange, broker or live feed.") }
                 GridRow { label("Network"); value("None. This build makes no network connections.") }
                 GridRow { label("Account"); value("No sign-in in this build.") }

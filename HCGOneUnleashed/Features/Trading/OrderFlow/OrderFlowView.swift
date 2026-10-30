@@ -1,3 +1,4 @@
+import HCGAppModel
 import HCGDesignSystem
 import HCGDomain
 import HCGMarketSim
@@ -5,8 +6,10 @@ import SwiftUI
 
 /// Trading → Order Flow: the first working workstation screen.
 ///
-/// Chart, DOM, header and ticket all render from the same `MarketSnapshot`
-/// of the same simulation frame, read once per update in `body`.
+/// This view owns the toolbar and keyboard handling and does **not** read the
+/// simulation frame, so toolbar menus are not rebuilt on every market update.
+/// `OrderFlowPanels` reads the frame once per update and hands the same
+/// `MarketSnapshot` to the header, chart, DOM and ticket.
 struct OrderFlowView: View {
     @Environment(SimulationHost.self) private var simulation
     @Environment(NavigationModel.self) private var navigation
@@ -14,31 +17,19 @@ struct OrderFlowView: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        let snapshot = simulation.frame[navigation.orderFlowSymbol]
+        let symbol = navigation.orderFlowSymbol
 
-        VStack(spacing: 0) {
-            MarketHeaderBar(snapshot: snapshot, isPlaying: simulation.isPlaying, speed: simulation.speed)
-            Divider()
-            HSplitView {
-                PriceChartPanel(series: PriceSeries(snapshot: snapshot), spec: snapshot.spec)
-                    .frame(minWidth: 380, idealWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
-                DepthLadderPanel(snapshot: snapshot, maxLevelsPerSide: ladderLevels)
-                    .frame(minWidth: 280, idealWidth: 340, maxWidth: 520, maxHeight: .infinity)
+        OrderFlowPanels(symbol: symbol, ladderLevels: ladderLevels)
+            .background(HCGColor.canvas)
+            .focusable()
+            .focusEffectDisabled()
+            .onKeyPress(.space) {
+                simulation.togglePlayback()
+                return .handled
             }
-            Divider()
-            SimulatedTicketBar(snapshot: snapshot, account: simulation.frame.account,
-                               message: simulation.lastOrderMessage)
-        }
-        .background(HCGColor.canvas)
-        .focusable()
-        .focusEffectDisabled()
-        .onKeyPress(.space) {
-            simulation.togglePlayback()
-            return .handled
-        }
-        .toolbar { toolbarItems(symbol: $navigation.orderFlowSymbol) }
-        .navigationTitle("Order Flow")
-        .navigationSubtitle("\(snapshot.symbol.ticker) · \(snapshot.spec.name) · Simulated")
+            .toolbar { toolbarItems(symbol: $navigation.orderFlowSymbol) }
+            .navigationTitle("Order Flow")
+            .navigationSubtitle("\(symbol.ticker) · \(symbol.spec.name) · Simulated")
     }
 
     @ToolbarContentBuilder
@@ -80,6 +71,32 @@ struct OrderFlowView: View {
             }
             .pickerStyle(.menu)
             .help("Simulation speed (⌘[ and ⌘])")
+        }
+    }
+}
+
+/// The frame-driven part of Order Flow. Every child receives the same snapshot.
+private struct OrderFlowPanels: View {
+    let symbol: MarketSymbol
+    let ladderLevels: Int
+    @Environment(SimulationHost.self) private var simulation
+
+    var body: some View {
+        let frame = simulation.frame
+        let snapshot = frame[symbol]
+
+        VStack(spacing: 0) {
+            MarketHeaderBar(snapshot: snapshot, isPlaying: simulation.isPlaying, speed: simulation.speed)
+            Divider()
+            HSplitView {
+                PriceChartPanel(series: PriceSeries(snapshot: snapshot), spec: snapshot.spec)
+                    .frame(minWidth: 380, idealWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
+                DepthLadderPanel(snapshot: snapshot, maxLevelsPerSide: ladderLevels)
+                    .frame(minWidth: 280, idealWidth: 340, maxWidth: 520, maxHeight: .infinity)
+            }
+            Divider()
+            SimulatedTicketBar(snapshot: snapshot, account: frame.account,
+                               equity: frame.equity, message: simulation.lastOrderMessage)
         }
     }
 }
