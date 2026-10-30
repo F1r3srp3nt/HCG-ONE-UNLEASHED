@@ -1,6 +1,6 @@
 # HCG ONE (iOS/iPadOS) → HCG ONE UNLEASHED (macOS): Compatibility Analysis
 
-Status: **Phase 1 draft.**
+Status: **Phase 1 analysis, updated after M1 (2026-10-30).** §8 lists what M1 ported and the additional defects found while porting.
 Source: `F1r3srp3nt/HCG-One` at `b4f0e29`, path `ios-hcg/HCGONE/` (read-only).
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`.
 
@@ -127,6 +127,7 @@ Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITE
   - GC spread from the initial 0.10 (one 0.10 tick): 0.30 after 1 move, 1.10 after 5, 3.50 after 20, 54.70 after 400. It only resets on scenario load or session reset.
   - This matches the iOS observation "GC spread 4.30 vs 0.50".
 - **Impact:** DOM and spread display are wrong, and **simulated fills pay the inflated spread**. That distorts P&L, statistics and Progress.
+- **Status (M1):** **fixed in UNLEASHED** (`HCGKit/Sources/HCGMarketSim/OrderBook.swift`). The regression test "GC spread stays at one 0.10 tick in a calm market" ran over 10,000 updates and passed (Swift 6.2.4, see `M1_IMPLEMENTATION_REPORT.md` §5). The iOS app is unchanged.
 - **Related risk (code reading, not reproduced):** the down-move path never refills `askLevels`. A long run of net down-moves could empty it, and `askLevels[0]` in `executeOneTrade` would then crash.
 - **Fix approach (PROPOSAL):**
   - Shift both sides of the book so that the invariant `bestAsk − bestBid == spec.tickSize` holds by default, and `bidLevels` / `askLevels` are each strictly monotonic.
@@ -166,3 +167,27 @@ These are things the iOS app **does not actually do**. UNLEASHED must not claim 
 `web-hcg-hakmi-capital-group/` is a Vite/React "rork-web-app". It mirrors HCG ONE: `/home`, `/trading`, `/client`, `/partner`, `/employee`, `/executive`, …, plus a TypeScript port of the Lab engine (`src/lab/*.ts`).
 - It uses the **same substring role mapping** as iOS (`hcgAuth.ts`, `mapRole`) and gates workspaces client-side from those roles (`domain/workspaces.ts`).
 - It is not used by UNLEASHED. It is noted here because the same findings apply to it.
+
+## 8. M1 port status (2026-10-30)
+
+| HCG-One source | UNLEASHED file | How |
+|---|---|---|
+| `Models/InstrumentSpec.swift`, `TradingLab/LabInstruments.swift` | `HCGDomain/Instruments.swift` | Ported; narrowed to GC, NQ, ES, CL; prices in whole ticks |
+| `TradingLab/MarketEngine.swift` (`SeededRNG`) | `HCGMarketSim/SeededRNG.swift` | Ported unchanged (algorithm) |
+| `TradingLab/MarketEngine.swift` (engine) | `HCGMarketSim/{OrderBook,MarketSimulator,MarketSnapshot}.swift` | **Rewritten** around the same flow model; defects below fixed |
+| `TradingLab/MarketScenario.swift` | `HCGMarketSim/MarketScenario.swift` | Ported; catalog text and phase parameters unchanged |
+| `TradingLab/SimBroker.swift` | `HCGMarketSim/SimulatedAccount.swift` | **Rewritten** as a basic, deterministic broker (market orders only) |
+| `TradingLab/LabStore.swift` | `HCGMarketSim/{SimulationEngine,SimulationHost}.swift` | **Rebuilt** as one clock for all markets (actor + main-actor host) |
+| `TradingLab/GEXModel.swift` | `HCGMarketSim/GEXModel.swift` | Ported; model unchanged, made public |
+| `HCGONETests/HCGONETests.swift` (`GEXModelTests`) | `Tests/HCGMarketSimTests/GEXModelTests.swift` | Ported; one incorrect expectation corrected |
+| `Utilities/Theme.swift`, `Views/Components/Components.swift` | `HCGDesignSystem/*` | Re-created for macOS with light, dark and high-contrast variants |
+| `Models/Company.swift` (`HCGProductRegistry`) | `HCGDomain/HCGEcosystem.swift` | Adapted. HCG ONE is listed as "In development" (alpha) rather than "Available", and HCG ONE UNLEASHED was added. |
+| `Assets.xcassets/HCGLogo.imageset` | `Resources/Assets.xcassets/HCGLogo.imageset` | Copied (brand asset) |
+
+**Additional defects found during the port** (details: `M1_IMPLEMENTATION_REPORT.md` §4):
+- the aggressor-direction sign error in the engine;
+- nondeterministic `Int.random` slippage in the broker;
+- trade-history commission attribution in the broker;
+- an incorrect GEX test expectation (`strikes.count == 3` should be 21), confirmed by executing the ported test.
+
+These remain in the iOS app; see the "Recommended iOS follow-ups" list in `DEVELOPMENT_ROADMAP.md`.

@@ -1,6 +1,6 @@
 # HCG ONE UNLEASHED — Architecture
 
-Status: **Phase 1 draft, for founder review.** Nothing in this document has been implemented, compiled or run.
+Status: **Phase 1 baseline, updated after M1 (2026-10-30).** §9 records what M1 actually built and where it deviates. Sections 1–8 remain the plan; anything not listed in §9 is still unimplemented.
 Source reference: `F1r3srp3nt/HCG-One` at commit `b4f0e29` (read-only).
 Date: 2026-10-30
 
@@ -233,3 +233,23 @@ These are targets, not results. No measurements exist yet.
 - **The "Website | App" dual experience** from iOS is not carried over by default. See D-04.
 - **HCG Studio** (the iOS on-device design editor) is not carried over by default. See D-05.
 - **Nothing related to the separately reserved hackathon project.**
+
+## 9. M1 as built (2026-10-30)
+
+M1 implemented the foundation described above, with these deviations. Details and test evidence: `M1_IMPLEMENTATION_REPORT.md`.
+
+| Plan (§ above) | As built in M1 | Why |
+|---|---|---|
+| `HCGKit` targets `HCGDomain`, `HCGMarketSim`, `HCGNetwork`, `HCGDesignSystem` (§3.2) | `HCGDomain`, `HCGMarketSim`, `HCGDesignSystem`. **No `HCGNetwork`.** | M1 makes no network calls. The target is created in M3. |
+| "Domain targets import Foundation only" (§3.1 rule 1) | `MarketSimulator`, `SimulationState` and `SimulationEngine` are Foundation-only. `SimulationHost` additionally imports **Observation** (a standard Swift module, also available on Linux). | Keeps one testable host next to the engine. Still no SwiftUI, AppKit or UIKit in the core. The rule is corrected to "Foundation and Observation only". |
+| `SimulationHost` holds simulators and publishes snapshots (§4.2) | Four layers: `MarketSimulator` (value type, one market) → `SimulationState` (value type, all markets + account, one clock) → `SimulationEngine` (actor, off the main actor) → `SimulationHost` (`@MainActor @Observable`, publishes immutable `SimulationFrame`s). | The value-type state makes determinism directly testable; the actor keeps simulation work off the main actor. |
+| Clock ticks only symbols with open panels (§4.2) | All four markets advance in lockstep on every update. | Simpler and cheap (four small books). Revisit if M2 profiling on 16 GB shows a cost. |
+| Render throttling via `TimelineView` (§4.2) | Not implemented. Panels redraw per published frame (≤ ~16/s at 8×). | Deferred to M2 with the multi-panel workstation. |
+| Interchangeable seams (§3.3) | Only `SimulationTicker` (clock injection for tests) exists. `MarketDataSource`, `CredentialStore` and the other seams are not created yet. | Created with the milestone that needs them, to avoid unused abstractions. |
+| Prices (not specified) | Integer ticks (`Int64`) throughout the simulation. | Exact book and spread arithmetic for every tick size. |
+| Scenes (§3.5) | Main `WindowGroup` + `Settings`. No trading-panel or workspace-viewer windows. | Panel windows are M2; viewer windows are M4. |
+| Menu commands (§3.7) | Go (⌘1–⌘6) and a **Simulation** menu (play/pause ⇧⌘P, step ⌥⌘., faster ⌘], slower ⌘[, speed, market ⌥⌘1–⌥⌘4, reset). No New Panel Window, Save Layout or Account menu. | Those commands belong to M2 and M3. |
+| Sidebar (§3.6) | As planned, plus an "HCG" section header grouping Explore, Projects and HCG Connect. Executive Workspace is not listed. | No sign-in exists, so server verification is impossible (S-05). |
+| Bundle identifier (D-02 proposal `app.hakmi.capital.group.unleashed`) | `com.hakmicapitalgroup.hcgoneunleashed` | Founder decision for M1, subject to signing review. |
+| `HCGDesignSystem` | Wrapped in `#if canImport(SwiftUI) && os(macOS)`; compiles to an empty module elsewhere. | Lets the whole package build and test on Linux. |
+| Swift settings | Swift 6 language mode in the package and the app. Default actor isolation is **not** set at project level; isolation is declared explicitly. | Behaves the same across Xcode versions. |

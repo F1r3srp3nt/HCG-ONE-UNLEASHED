@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+DerivedData/
+build/
+*.xcarchive
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Distribution artifacts (never commit builds)
+*.dmg
+*.pkg
+*.zip
+
+# Secrets and signing material — never commit (docs/SECURITY_BOUNDARIES.md §6)
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+.env
+.env.*
+Secrets.xcconfig
+*.local.xcconfig

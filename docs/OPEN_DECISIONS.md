@@ -1,6 +1,6 @@
 # HCG ONE UNLEASHED — Open Decisions
 
-Status: **Phase 1 draft.** Each decision belongs to the founder. "Recommendation" is a **PROPOSAL**, not a decision.
+Status: **Phase 1 draft, updated after M1 (2026-10-30)**; see "Status after M1" below. Each decision belongs to the founder. "Recommendation" is a **PROPOSAL**, not a decision.
 "Blocks" names the earliest milestone that needs the answer (see `DEVELOPMENT_ROADMAP.md`).
 
 | ID | Decision | Options | Recommendation | Blocks |
@@ -32,6 +32,29 @@ Status: **Phase 1 draft.** Each decision belongs to the founder. "Recommendation
 | **D-25** | Account creation in the Mac app | Sign-up in app · sign-in only (sign-up on website) | **Sign-in only.** Sign-up links to the website, so consent and terms stay in one place. | M3 |
 | **D-26** | Server-side test data cleanup | "test" display name, "Client"/"Test" Connect threads | Founder or backend task. Not done by this project (no backend changes). | Before beta |
 | **D-27** | Mac app icon | Adapt the brand icon to the macOS icon shape · new design | **Designer adapts the existing mark** to the macOS icon template | M1 (placeholder: brand logo, clearly temporary) |
+
+## Status after M1 (2026-10-30)
+
+| ID | Status |
+|---|---|
+| D-01 | **Decided for M1:** macOS 15 minimum |
+| D-02 | **Decided for M1:** `com.hakmicapitalgroup.hcgoneunleashed`, display name "HCG ONE UNLEASHED", subject to final signing review |
+| D-03 | **Decided:** one `HCGKit` package (3 targets in M1) |
+| D-04 | **Decided for M1:** no Website/App switcher |
+| D-05 | **Decided for M1:** no HCG Studio |
+| D-06 | **Open.** No welcome window was built in M1; the app opens to Home. |
+| D-09 | **Applied:** the simulation core is Foundation (+ Observation) only and builds on Linux |
+| D-10 | **Partly done:** Linux Swift toolchain (Docker) used for core tests. Founder's Mac build pending. **GitHub Actions not configured.** macOS runner minutes on a private repository may be billed, so this needs approval. |
+| D-14 | **Decided:** App Sandbox on |
+| D-22 | **Decided for M1:** branch `feature/m1-native-macos-foundation`; commit/push only with approval |
+| D-27 | **Open:** temporary icon marked "DEV BUILD" in use |
+
+New decisions raised by M1:
+
+| ID | Decision | Options | Recommendation | Blocks |
+|---|---|---|---|---|
+| **D-28** | Simulated spread model parameters | Keep M1 values (1-tick base; max widening GC 6, NQ 6, ES 4, CL 8) · tune with trading expertise | **Founder review in M2.** These are simulation choices, not market statistics. | M2 |
+| **D-29** | Persist simulation state across launches | Fresh session each launch (M1) · persist the account, progress and layouts | **Persist the account, progress and layouts in M2** (local only) | M2 |
 
 ## Decisions already made (from the founder brief, recorded for traceability)
 

@@ -1,6 +1,6 @@
 # HCG ONE UNLEASHED — Integrations
 
-Status: **Phase 1 draft.**
+Status: **Phase 1 draft; unchanged by M1.** M1 implements **no integration**. The app contains no HCG endpoint, URL, key or network client, and its sandbox entitlements grant no network access (`com.apple.security.network.client` is absent). This was verified by searching the M1 sources for `URLSession`, `URLRequest`, URLs, Keychain and token use: no matches.
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`.
 
 > **No HCG service was called during Phase 1.** Every endpoint below is documented from the HCG-One source (`b4f0e29`) and the in-repo report `HCG-CARDX-AUTH-INTEGRATION-REPORT.md`. "VERIFIED" means "present in source code", **not** "confirmed working against the live server". Live verification is part of milestone M3 and needs founder approval.

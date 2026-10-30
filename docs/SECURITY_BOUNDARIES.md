@@ -1,6 +1,6 @@
 # HCG ONE UNLEASHED — Security Boundaries
 
-Status: **Phase 1 draft.**
+Status: **Phase 1 draft, with M1 controls recorded in §9.**
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`.
 
 > **Governance rule (founder brief):** any change to HCG system rules, security policies, roles, permissions or governance requires **explicit manual founder approval**. Nothing in this document changes those systems. Findings that touch them are recommendations only.
@@ -109,3 +109,25 @@ The repository's `.gitignore` will exclude `*.p8`, `*.p12`, `*.cer`, `*.mobilepr
 4. **S-08:** privacy notice wording.
 5. **Implementing production authentication** in UNLEASHED (M3).
 6. **Signing, notarization, Sparkle, licensing, payments, CI with secrets.**
+
+## 9. Controls in place after M1 (2026-10-30)
+
+| Control | M1 state | Verified how |
+|---|---|---|
+| App Sandbox | `com.apple.security.app-sandbox = true` (`HCGOneUnleashed/Resources/HCGOneUnleashed.entitlements`), plus `ENABLE_APP_SANDBOX = YES` | File contents. **Enforcement on macOS not yet observed.** |
+| Network access | **None.** No `network.client` entitlement, so the sandbox blocks outgoing connections. No networking code. | Entitlements file; source search (no `URLSession`, URLs or endpoints) |
+| Hardened Runtime | `ENABLE_HARDENED_RUNTIME = YES` (Debug and Release) | Build settings. **Not yet observed** in a signed binary. |
+| Signing | "Sign to Run Locally" (`CODE_SIGN_IDENTITY = "-"`), no team. No certificates in the repo. | Build settings |
+| Credentials / tokens / Keychain | None used or stored | Source search |
+| Secrets in repository | None. `.gitignore` excludes `*.p8`, `*.p12`, `*.cer`, provisioning profiles, `.env*`, `Secrets.xcconfig`. | Pattern scan of the working tree |
+| Local storage | `UserDefaults` holds three preferences only: default speed, start-on-launch, DOM depth. `@SceneStorage` holds sidebar selection and symbol. No personal data. | Source (`Preferences.swift`, `MainWindow.swift`) |
+| Authorization | No privileged UI. Executive Workspace is not listed; Account, Profile and Client Workspace show "requires sign-in". | Source (`Navigation.swift`, `UnavailableSectionView.swift`) |
+| Telemetry | None | Source and dependency list (no packages) |
+
+To verify on the Mac after the first build:
+
+```bash
+codesign -d --entitlements - --verbose=2 "$(xcodebuild -project HCGOneUnleashed.xcodeproj -scheme HCGOneUnleashed -showBuildSettings | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/HCGOneUnleashed.app"
+```
+
+The output should list `com.apple.security.app-sandbox`, and the code-signature flags should include `runtime` (ad-hoc builds show `adhoc,runtime`).

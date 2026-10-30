@@ -1,12 +1,12 @@
 # HCG ONE UNLEASHED — Development Roadmap
 
-Status: **Phase 1 draft. Every milestone after Phase 1 requires founder approval before it starts.**
+Status: **Phase 1 plan, updated after M1 implementation (2026-10-30).** Every milestone requires founder approval before it starts. M1 was approved by the founder; M2 and later are not.
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`. Everything below is **PROPOSAL** unless marked otherwise.
 
 ## Working rules
 
 1. **All work happens in `F1r3srp3nt/hcg-one-unleashed`.** `F1r3srp3nt/HCG-One` is read-only: no commits, branches, tags, PRs or settings changes.
-2. **No commit or push without explicit founder approval.** Work is proposed on branch `claude/cool-wozniak-l78dyb` unless the founder chooses otherwise (D-22).
+2. **No commit or push without explicit founder approval.** M1 work is on branch `feature/m1-native-macos-foundation` (D-22).
 3. **No changes to live HCG backends, security policies, roles or governance.**
 4. **Market data stays simulated.**
 5. **"Built", "tested" and "verified" are claimed only with evidence** (build log, test output, screenshot), and stated with where they ran.
@@ -14,7 +14,7 @@ Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITE
 
 ## Build and verification constraint (VERIFIED)
 
-The current agent environment is **Linux x86_64 with no Swift toolchain and no Xcode**. macOS app code cannot be compiled or run here. Options (D-10):
+The current agent environment is **Linux x86_64 with no Xcode**. Since M1, the Foundation-only HCGKit targets are built and tested there with the official `swift:6.2-noble` Docker image (option (c) below). macOS app code cannot be compiled or run here. Options (D-10):
 - (a) The founder builds and tests on the M4 Max.
 - (b) A GitHub Actions macOS runner builds and tests on each push. This is CI, not release automation.
 - (c) Install the official Swift toolchain for Linux here, for Foundation-only packages (`HCGDomain`, `HCGMarketSim`, `HCGNetwork`). This gives real test runs for the core.
@@ -62,6 +62,25 @@ Until one of these exists, Mac code from this environment is **written, not buil
 - Founder review of the look and feel.
 
 **Not in M1:** authentication, any HTTP call, licensing, signing for distribution, Sparkle.
+
+**M1 status (2026-10-30): implemented; awaiting the founder's first macOS build and review.** Details: `M1_IMPLEMENTATION_REPORT.md`.
+
+| Scope item | Status |
+|---|---|
+| 1. Project setup (Xcode project, macOS app target, `HCGKit`, Swift 6, sandbox, hardened runtime, `.gitignore`) | Done. The `.xcconfig` scaffolding was not needed (no configuration values exist yet). |
+| 2. `MarketSimulator` port with the order-book fix, snapshots and tests | Done |
+| 3. `SimulationHost` with one clock; `SimBroker` core | Done (basic broker: market orders) |
+| 4. Main window with six areas and honest unavailable states | Done |
+| 5. Order Flow: Chart and DOM split, symbol picker, play/pause/speed | Done (plus a basic simulated ticket) |
+| 6. Go and Trading menus; Settings scene | Done (the "Trading" menu is named "Simulation") |
+| 7. Design system and Mac icon | Design system done; **temporary** DEV icon only (D-27) |
+
+| Exit criterion | Status |
+|---|---|
+| App builds and launches on the founder's Mac or CI, with logs | **Pending.** Not possible in this environment. |
+| `HCGKit` tests pass, with output | **Passed on Linux** (Swift 6.2.4: 43 tests, 73 cases, 0 warnings). Pending on macOS. |
+| GC spread stays at one tick through a 10,000-tick soak | **Passed** (executed) |
+| Founder review of look and feel | Pending |
 
 ## M2: Trading workstation v1
 
@@ -155,3 +174,8 @@ HCG-One is read-only to this project. These findings also apply to the iOS app a
 - `ClientDemo` off by default.
 - S-07 owner-inbox copy.
 - S-08 privacy notice.
+- Found during the M1 port (`M1_IMPLEMENTATION_REPORT.md` §4):
+  - aggressor-direction sign in `MarketEngine.executeOneTrade`;
+  - `Int.random` slippage in `SimBroker.fill`;
+  - commission attribution in `SimBroker.open/fill`;
+  - the GEX test expectation `strikes.count == 3` (should be 21).
