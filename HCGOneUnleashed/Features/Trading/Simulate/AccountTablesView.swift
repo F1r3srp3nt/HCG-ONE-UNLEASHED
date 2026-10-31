@@ -7,8 +7,8 @@ import SwiftUI
 /// The simulated blotter: positions, working orders and history.
 ///
 /// Reads `simulation.account`, which changes only when the account does, so
-/// these tables are not rebuilt on every market update. The positions table
-/// is the exception: it shows unrealized P&L and reads the frame.
+/// the history tables are not rebuilt on every market update. Positions
+/// (unrealized P&L) and working orders (queue position) read the frame.
 struct AccountTablesView: View {
     let selectedSymbol: MarketSymbol
     @Environment(SimulationHost.self) private var simulation
@@ -38,7 +38,7 @@ struct AccountTablesView: View {
             case .positions:
                 PositionsTable()
             case .working:
-                WorkingOrdersTable(account: account)
+                WorkingOrdersTable()
             case .orders:
                 OrderHistoryTable(orders: Array(account.orderHistory.reversed()))
             case .fills:
@@ -179,10 +179,10 @@ private struct PositionsTable: View {
 }
 
 private struct WorkingOrdersTable: View {
-    let account: TradingAccount
     @Environment(SimulationHost.self) private var simulation
 
     var body: some View {
+        let account = simulation.frame.account
         Table(account.openOrders) {
             TableColumn("Order") { o in Text("#\(o.id)").monospacedDigit() }
                 .width(min: 40, ideal: 50)
@@ -199,8 +199,9 @@ private struct WorkingOrdersTable: View {
                 .width(min: 34, ideal: 40)
             TableColumn("Price") { o in Text(TradingFormat.orderPrice(o)).monospacedDigit() }
             TableColumn("Status") { o in
-                Text(o.status == .accepted ? "Waiting for entry fill" : o.status.label)
+                Text(Self.status(o))
                     .foregroundStyle(HCGColor.textSecondary)
+                    .help("Queue: contracts estimated ahead of this order at its price. It shrinks as trades print there.")
             }
             TableColumn("Placed (UTC)") { o in Text(TradingFormat.time(o.createdAt)).monospacedDigit() }
             TableColumn("") { o in
@@ -215,6 +216,13 @@ private struct WorkingOrdersTable: View {
                                        description: Text("Limit, stop and bracket orders wait here until they fill or are cancelled."))
             }
         }
+    }
+
+    private static func status(_ order: Order) -> String {
+        if order.status == .accepted { return "Waiting for entry fill" }
+        guard order.type == .limit else { return order.status.label }
+        let queue = order.queueAhead.map { $0 == 0 ? "front of queue" : "\($0) ahead" } ?? "queue when in view"
+        return "\(order.status.label) · \(queue)"
     }
 }
 

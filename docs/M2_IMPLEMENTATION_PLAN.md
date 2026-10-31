@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — M2 Implementation Plan
+# HCG ONE: UNLEASHED — M2 Implementation Plan
 
 Status: **PROPOSAL for founder review. Not started. Nothing in this plan is implemented until the founder authorizes it.**
 Baseline: M1 plus the M2.0 stabilization (`docs/M1_AUDIT.md`).

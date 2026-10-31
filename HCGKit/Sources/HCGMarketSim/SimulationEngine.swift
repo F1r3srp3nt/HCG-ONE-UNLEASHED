@@ -54,6 +54,18 @@ public struct SimulationFrame: Sendable, Equatable {
         guard let snapshot = markets[symbol] else { return 0 }
         return account.unrealizedPnL(symbol, quote: Quote(bidTicks: snapshot.bidTicks, askTicks: snapshot.askTicks))
     }
+
+    public var riskStatus: RiskStatus { account.riskStatus(quotes: quotes) }
+
+    /// The engine's view of one market's book in this frame, for previews
+    /// such as the queue estimate (no prints: those belong to execution).
+    public func marketView(_ symbol: MarketSymbol) -> MarketView {
+        let s = self[symbol]
+        return MarketView(symbol: symbol, sequence: sequence, time: time,
+                          bidTicks: s.bidTicks, askTicks: s.askTicks, lastTicks: s.lastTicks,
+                          bids: s.bids.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) },
+                          asks: s.asks.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) })
+    }
 }
 
 /// The complete, synchronous simulation state: all markets plus the trading
@@ -106,6 +118,15 @@ public struct SimulationState: Sendable, Equatable, Codable {
         for symbol in MarketSymbol.allCases where account.hasOpenOrders(symbol) {
             account.process(market: marketView(symbol))
         }
+        enforceRisk()
+    }
+
+    /// Applies the account's risk rules (daily loss, trailing drawdown,
+    /// margin liquidation) against the current markets.
+    private mutating func enforceRisk() {
+        var views: [MarketSymbol: MarketView] = [:]
+        for symbol in MarketSymbol.allCases { views[symbol] = marketView(symbol) }
+        account.enforceRisk(markets: views)
     }
 
     /// Restarts every market with a new seed and resets the account.
@@ -135,6 +156,7 @@ public struct SimulationState: Sendable, Equatable, Codable {
     @discardableResult
     public mutating func submit(_ request: OrderRequest) -> OrderResult {
         let result = account.submit(request, market: marketView(request.symbol), quotes: quotes())
+        enforceRisk()
         revision += 1
         return result
     }
@@ -154,6 +176,7 @@ public struct SimulationState: Sendable, Equatable, Codable {
     @discardableResult
     public mutating func closePosition(_ symbol: MarketSymbol) -> OrderResult? {
         let result = account.closePosition(market: marketView(symbol))
+        enforceRisk()
         revision += 1
         return result
     }
@@ -164,6 +187,7 @@ public struct SimulationState: Sendable, Equatable, Codable {
         for symbol in MarketSymbol.allCases where account.position(symbol) != nil {
             account.closePosition(market: marketView(symbol))
         }
+        enforceRisk()
         revision += 1
     }
 
@@ -197,10 +221,16 @@ public struct SimulationState: Sendable, Equatable, Codable {
     public func marketView(_ symbol: MarketSymbol) -> MarketView {
         guard let market = markets[symbol] else { preconditionFailure("No market for \(symbol)") }
         let book = market.book
+        // Trades of the market's latest update (recorded before its step counter advanced).
+        let step = market.marketStep - 1
+        let prints = market.tape.reversed().prefix { $0.marketStep == step }.reversed().map {
+            TradePrint(priceTicks: $0.priceTicks, size: $0.size, aggressor: $0.aggressor == .buy ? .buy : .sell)
+        }
         return MarketView(symbol: symbol, sequence: sequence, time: time,
                           bidTicks: book.bestBid, askTicks: book.bestAsk, lastTicks: market.lastTicks,
                           bids: book.bids.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) },
-                          asks: book.asks.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) })
+                          asks: book.asks.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) },
+                          prints: Array(prints))
     }
 
     public func quotes() -> [MarketSymbol: Quote] {

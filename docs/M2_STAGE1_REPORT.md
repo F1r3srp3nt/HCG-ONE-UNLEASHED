@@ -1,6 +1,8 @@
-# HCG ONE UNLEASHED — M2 Stage 1 Report: Simulated Trading Account and Order Engine
+# HCG ONE: UNLEASHED — M2 Stage 1 Report: Simulated Trading Account and Order Engine
 
 Date: 2026-10-30 · Branch: `feature/m2-stage1-trading-engine` (from `feature/m2.0-audit-stabilization` @ `9482feb`) · **Not committed.** Awaiting founder review.
+
+> **Addendum 2026-10-31** (§8): founder decisions applied. The product is now named "HCG ONE: UNLEASHED", and the engine has queue position, shared liquidity, intraday margins and evaluation-style risk rules. Tests: **109 passed**. The sections below describe the state of 2026-10-30, commit `9b7aa4c`.
 
 Engine rules and assumptions: `TRADING_ENGINE.md`. Decisions raised: `OPEN_DECISIONS.md` ("Status after M2 Stage 1").
 
@@ -150,3 +152,48 @@ Build: open `HCGOneUnleashed.xcodeproj`, scheme **HCGOneUnleashed**, **My Mac**,
 - Timeframes 1m–1d aggregated from timestamped trade events.
 - Indicators SMA/EMA/RSI/MACD/Bollinger/VWAP/ATR, tested against reference data.
 - Then Stage 3 (Order Flow workstation), Stage 4 (Command Center Home and branding), Stage 5 (workspaces, skins, multi-window, ⌘K, export, performance).
+
+## 8. Addendum 2026-10-31: founder decisions applied
+
+The founder decided:
+- the name is **HCG ONE: UNLEASHED**;
+- logos and icons can change at any time;
+- the open trading decisions are delegated: "be creative; this is training for mostly advanced traders moving from candlesticks to order-flow systems". The choices made are recorded in `OPEN_DECISIONS.md` ("Founder decisions of 2026-10-31").
+
+### Implemented
+
+| Change | Where |
+|---|---|
+| **Queue position for resting limits (D-34).** A limit joins behind the displayed size, plus your own earlier orders. It advances only as trades print at its price, fills on trade-through, and no longer fills on a mere touch. | `TradingAccount.processRestingLimit`, `queuePosition`; prints added to `MarketView` from the simulator's tape |
+| **Shared liquidity within an update (D-33c).** Your own orders cannot take the same displayed contracts twice. | `TradingAccount` liquidity ledger, used by taker and touch fills |
+| **Intraday margins (D-32):** ES $500; NQ, GC and CL $1,000 | `AccountConfiguration.standard` |
+| **Evaluation-style risk rules (D-35):** 5 contracts, $1,000 daily loss limit (lock until next session), $2,000 trailing drawdown capped at the starting balance (lock until reset), liquidation below margin | `RiskLimits.evaluation`, `TradingAccount.enforceRisk`, run after every update and order in `SimulationState` |
+| UI: risk panel (session P&L vs limit, drawdown room, lock banner), ticket lock state and queue preview, queue shown in Working, and risk rules in Settings → Account with "Use Evaluation Account Rules" | `AccountSummaryView`, `OrderTicketView`, `AccountTablesView`, `AccountSettingsTab` |
+| Name "HCG ONE: UNLEASHED": window title, bundle display name, wordmark, About, Home product list, Settings, docs | 20 code locations, `project.pbxproj` |
+| Older session files still load: risk rules off, queue estimated when the price is in view | `RiskLimits.init(from:)`, optional engine state |
+
+### Tested (executed)
+
+Same command as §3.1 (Swift 6.2.4, Docker, `TZ=Europe/Oslo`): **`✔ Test run with 109 tests in 18 suites passed`**, with no compiler warnings. There are 17 new tests:
+- **Queue position (7):** joining the bid then filling from prints; FIFO with your own orders; improving the price puts you at the front; pulled size shortens the queue; trade-through fills fully; touch alone doesn't fill; a price beyond the visible depth; the preview estimate equals the real queue.
+- **Shared liquidity (1):** a second market order in the same update walks deeper; the next update is fresh.
+- **Risk rules (6):**
+  - the daily loss limit closes, cancels, locks, rejects new entries, and unlocks next session;
+  - the trailing drawdown floor follows the high, caps at the starting balance, locks, stays locked across sessions, and resets;
+  - margin liquidation happens without a lock, and rules that are off never act;
+  - old configuration JSON decodes, and the defaults validate.
+- **On the real simulator (3):**
+  - the engine's prints equal the simulator's tape;
+  - a bid joined at the best bid fills only on an update where more was sold at its price than was queued ahead, or the market reached through it;
+  - the frame's market view equals the engine's.
+
+Four existing tests were pinned to explicit configurations, because they assert the old defaults (margin values, and 100/50 contract limits with no risk rules), not behaviour.
+
+**App target:** all files parse (`swiftc -parse`). It is still **not compiled**, and still needs your Mac.
+
+### Additional QA steps (founder's Mac)
+
+18. **Queue:** place a buy limit at the bid. Working shows "N ahead", and the number falls as trades print at that price. It fills only after it reaches the front, or when the market trades through.
+19. **Daily loss:** set the daily loss limit to $100, open 2 ES and let them lose. Everything closes, the lock banner appears, the ticket is disabled, and Activity shows "Trading locked".
+20. **Drawdown:** with the trailing drawdown set low, a winning trade raises the floor, shown in "Drawdown room". A pullback to the floor locks the account until Reset Account.
+21. **Name:** the window title, Dock name, About and the Home wordmark read "HCG ONE: UNLEASHED".

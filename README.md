@@ -1,6 +1,6 @@
-# HCG ONE UNLEASHED
+# HCG ONE: UNLEASHED
 
-The native macOS edition of HCG ONE by Hakmi Capital Group.
+The native macOS edition of HCG ONE by Hakmi Capital Group: simulated order-flow trading training for advanced traders.
 
 **Status: development build, M2 Stage 1** (simulated trading account and order engine). Native shell, simulated market engine, Order Flow, and a simulated trading account with market, limit, stop and bracket orders (Trading → Simulate).
 - No sign-in, no network connections, no payments or licensing.

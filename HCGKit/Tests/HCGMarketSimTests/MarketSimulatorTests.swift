@@ -341,6 +341,7 @@ struct SimulationStateTests {
         // margin after about 2,100 round trips and further buys are rejected.)
         var configuration = AccountConfiguration.standard
         configuration.startingBalance = 10_000_000
+        configuration.risk = RiskLimits() // no account risk rules: this test is about history bounds
         var state = SimulationState(seed: 9, account: TradingAccount(configuration: configuration))
         for i in 0..<6_000 {
             state.advance()

@@ -280,7 +280,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "HCG ONE UNLEASHED";
+				INFOPLIST_KEY_CFBundleDisplayName = "HCG ONE: UNLEASHED";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Hakmi Capital Group. Development build.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -312,7 +312,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "HCG ONE UNLEASHED";
+				INFOPLIST_KEY_CFBundleDisplayName = "HCG ONE: UNLEASHED";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Hakmi Capital Group. Development build.";
 				LD_RUNPATH_SEARCH_PATHS = (

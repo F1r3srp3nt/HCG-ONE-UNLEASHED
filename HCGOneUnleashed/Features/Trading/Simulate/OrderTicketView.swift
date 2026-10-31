@@ -90,6 +90,13 @@ struct OrderTicketView: View {
                 }
             }
 
+            if let lock = simulation.account.tradingLock {
+                Label("Trading locked: \(lock.title). \(lock.unlockText)", systemImage: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(HCGColor.loss)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             bracketSection(spec)
 
             TicketPreview(symbol: symbol, side: side, type: type, quantity: quantity,
@@ -101,7 +108,8 @@ struct OrderTicketView: View {
             }
             .buttonStyle(HCGButtonStyle(.primary))
             .keyboardShortcut(.return, modifiers: .command)
-            .disabled(isSubmitting || (type != .market && price == nil) || (attachBracket && bracketSpec == nil))
+            .disabled(isSubmitting || simulation.account.tradingLock != nil
+                      || (type != .market && price == nil) || (attachBracket && bracketSpec == nil))
             .help("Places a simulated order (⌘↩). Nothing is sent outside this Mac.")
 
             if let outcome {
@@ -291,9 +299,14 @@ private struct TicketPreview: View {
             guard let price, TradingFormat.isSafe(price) else { return "Enter a limit price." }
             let limit = spec.roundedToTick(price)
             let marketable = side == .buy ? limit >= snapshot.ask : limit <= snapshot.bid
-            return marketable
-                ? "Marketable: fills now at up to \(TradingFormat.price(limit, spec)); any rest works at the limit."
-                : "Works at \(TradingFormat.price(limit, spec)) until the market trades there."
+            if marketable {
+                return "Marketable: fills now at up to \(TradingFormat.price(limit, spec)); any rest works at the limit."
+            }
+            let queue = simulation.frame.account.estimatedQueue(side: side, limitTicks: spec.ticks(price: limit),
+                                                                 market: simulation.frame.marketView(symbol))
+            let place = queue.map { $0 == 0 ? "at the front of the queue" : "behind about \($0) contracts" }
+                ?? "beyond the visible book; it joins the back of the queue when that price comes into view"
+            return "Rests at \(TradingFormat.price(limit, spec)), \(place). It fills as trades print there, or when the market reaches through it."
         case .stop:
             guard let price, TradingFormat.isSafe(price) else { return "Enter a stop price." }
             let stop = TradingFormat.price(spec.roundedToTick(price), spec)

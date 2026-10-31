@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — Development Roadmap
+# HCG ONE: UNLEASHED — Development Roadmap
 
 Status: **Phase 1 plan, updated after M1 implementation (2026-10-30).** Every milestone requires founder approval before it starts. M1 was approved by the founder; M2 and later are not.
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`. Everything below is **PROPOSAL** unless marked otherwise.
@@ -98,6 +98,7 @@ The founder authorized M2 ("Functional Trading Platform, Order Flow Workstation 
 **Status: implemented on branch `feature/m2-stage1-trading-engine`, not committed. Awaiting the founder's build and review.**
 - Engine and rules: `TRADING_ENGINE.md`. Report, test evidence and manual QA checklist: `M2_STAGE1_REPORT.md`.
 - HCGKit: 92 tests pass (Swift 6.2.4 on Linux). **The app target was not compiled here.**
+- 2026-10-31: founder decisions applied (name "HCG ONE: UNLEASHED"; order-flow realism: queue position and shared liquidity; an evaluation-style account with intraday margins and risk rules). 109 tests pass. See the addendum in `M2_STAGE1_REPORT.md`.
 - Next stages, each only after the previous report is reviewed:
   - Stage 2: charting (timeframes aggregated from timestamped trades; indicators against reference data).
   - Stage 3: Order Flow workstation window.

@@ -1,7 +1,7 @@
 import HCGMarketSim
 import SwiftUI
 
-/// HCG ONE UNLEASHED — native macOS application entry point.
+/// HCG ONE: UNLEASHED — native macOS application entry point.
 ///
 /// Development build: no sign-in, no network access, simulated market data
 /// and a simulated trading account only.
@@ -11,7 +11,7 @@ struct HCGOneUnleashedApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("HCG ONE UNLEASHED", id: "main") {
+        WindowGroup("HCG ONE: UNLEASHED", id: "main") {
             MainWindow()
                 .environment(appDelegate.simulation)
         }

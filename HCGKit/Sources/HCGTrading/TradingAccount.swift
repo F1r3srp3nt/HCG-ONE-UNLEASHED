@@ -22,10 +22,14 @@ public struct Stamp: Codable, Hashable, Sendable {
 /// - market orders and triggered stops take liquidity: they walk the opposite
 ///   side of the book best-first, then add the configured slippage ticks;
 /// - a limit order that is marketable when submitted takes liquidity up to
-///   its limit price; the rest rests and fills at its limit price when the
-///   opposite best price touches it (up to the size shown there) or trades
-///   through it (fully);
+///   its limit price; the rest rests at its limit price with a queue
+///   position. It fills from prints at its price once the queue ahead has
+///   traded, from the opposite quote reaching its price, or fully when the
+///   market trades through it;
+/// - your own orders share the displayed liquidity of an update (D-33c);
 /// - take-profit and stop-loss orders are reduce-only and OCO;
+/// - account risk rules (daily loss limit, trailing drawdown, margin
+///   liquidation) are applied by `enforceRisk(markets:)`;
 /// - every market update is processed at most once per market.
 public struct TradingAccount: Codable, Sendable, Equatable {
     public static let schemaVersion = 1
@@ -63,6 +67,11 @@ public struct TradingAccount: Codable, Sendable, Equatable {
     private var recentClientIDs: [String] = []
     private var lastProcessedSequence: [MarketSymbol: Int] = [:]
     private var lastStamp = Stamp(sequence: 0, time: Date(timeIntervalSince1970: 0))
+    /// Displayed liquidity your own orders used in the current update, per
+    /// market (D-33c). Optional so sessions saved before it existed still load.
+    private var ledgers: [MarketSymbol: LiquidityLedger]?
+    /// Risk-rule state: equity high, session start equity, trading lock.
+    private var monitor: RiskMonitor?
 
     public init(configuration: AccountConfiguration = .standard) {
         self.configuration = configuration
@@ -205,8 +214,11 @@ public struct TradingAccount: Codable, Sendable, Equatable {
             if marketable {
                 produced = executeTaker(orderID: order.id, market: market, limitTicks: limitTicks)
             }
-            if let current = openOrders.first(where: { $0.id == order.id }), current.status == .working {
-                log(.orderWorking, current, "\(describe(current)) working", stamp)
+            if let i = openOrders.firstIndex(where: { $0.id == order.id }), let limitTicks {
+                openOrders[i].queueAhead = queuePosition(for: openOrders[i], limitTicks: limitTicks, market: market)
+                if openOrders[i].status == .working {
+                    log(.orderWorking, openOrders[i], "\(describe(openOrders[i])) working", stamp)
+                }
             }
         case .stop:
             log(.orderWorking, order, "\(describe(order)) working", stamp)
@@ -317,8 +329,12 @@ public struct TradingAccount: Codable, Sendable, Equatable {
                 archive(order)
                 log(.orderRejected, order, "\(describe(order)) rejected: \(reason)", stamp)
             } else {
-                openOrders.append(order)
-                log(.orderWorking, order, "\(describe(order)) working", stamp)
+                var working = order
+                if let limit = working.limitTicks, type == .limit {
+                    working.queueAhead = queuePosition(for: working, limitTicks: limit, market: market)
+                }
+                openOrders.append(working)
+                log(.orderWorking, working, "\(describe(working)) working", stamp)
             }
             results.append(OrderResult(order: order, fills: []))
         }
@@ -346,13 +362,7 @@ public struct TradingAccount: Codable, Sendable, Equatable {
                 continue // market orders never rest
             case .limit:
                 guard let limit = order.limitTicks else { continue }
-                if order.side == .buy, market.askTicks <= limit {
-                    let available = market.askTicks < limit ? order.remainingQuantity : (market.asks.first?.size ?? 0)
-                    produced += executeMaker(orderID: id, quantity: available, priceTicks: limit, market: market)
-                } else if order.side == .sell, market.bidTicks >= limit {
-                    let available = market.bidTicks > limit ? order.remainingQuantity : (market.bids.first?.size ?? 0)
-                    produced += executeMaker(orderID: id, quantity: available, priceTicks: limit, market: market)
-                }
+                produced += processRestingLimit(order, limit: limit, market: market)
             case .stop:
                 guard let stop = order.stopTicks else { continue }
                 let triggered = order.side == .buy ? market.askTicks >= stop : market.bidTicks <= stop
@@ -409,6 +419,7 @@ public struct TradingAccount: Codable, Sendable, Equatable {
         let spec = request.symbol.spec
         let tick = PriceFormat.price(spec.tickSize, decimals: spec.priceDecimals)
         guard request.symbol == market.symbol else { return "Market data does not match the order's instrument." }
+        if let lock = monitor?.lock { return "Trading is locked: \(lock.title). \(lock.unlockText)" }
         guard (1...configuration.risk.maxOrderQuantity).contains(request.quantity) else {
             return "Quantity must be between 1 and \(configuration.risk.maxOrderQuantity) contracts."
         }
@@ -457,7 +468,8 @@ public struct TradingAccount: Codable, Sendable, Equatable {
             close(orderID: orderID, as: .cancelled, reason: "Position already closed", stamp: Stamp(sequence: market.sequence, time: market.time))
             return []
         }
-        let levels = order.side == .buy ? market.asks : market.bids
+        let fromAsks = order.side == .buy
+        let levels = fromAsks ? market.asks : market.bids
         var remaining = wanted
         var notionalTicks = 0.0
         for level in levels where remaining > 0 {
@@ -465,7 +477,11 @@ public struct TradingAccount: Codable, Sendable, Equatable {
                 if order.side == .buy, level.priceTicks > limitTicks { break }
                 if order.side == .sell, level.priceTicks < limitTicks { break }
             }
-            let take = min(remaining, level.size)
+            // Size your own earlier orders already took in this update is gone (D-33c).
+            let free = level.size - usedLiquidity(market, fromAsks: fromAsks, priceTicks: level.priceTicks)
+            guard free > 0 else { continue }
+            let take = min(remaining, free)
+            consumeLiquidity(market, fromAsks: fromAsks, priceTicks: level.priceTicks, quantity: take)
             notionalTicks += Double(level.priceTicks) * Double(take)
             remaining -= take
         }
@@ -558,7 +574,7 @@ public struct TradingAccount: Codable, Sendable, Equatable {
             log(.orderPartiallyFilled, updated, "\(describe(updated)): \(quantity) filled at \(priceText), \(updated.remainingQuantity) remaining", stamp)
         }
 
-        if updated.role == .entry { activateChildren(of: updated, stamp: stamp) }
+        if updated.role == .entry { activateChildren(of: updated, stamp: stamp, market: market) }
         reconcileProtectiveOrders(symbol: symbol, filledOrder: updated, stamp: stamp)
         return fill
     }
@@ -625,7 +641,7 @@ public struct TradingAccount: Codable, Sendable, Equatable {
 
     /// Sizes and prices bracket children from the entry's filled quantity and
     /// average fill price, and makes them work.
-    private mutating func activateChildren(of entry: Order, stamp: Stamp) {
+    private mutating func activateChildren(of entry: Order, stamp: Stamp, market: MarketView) {
         guard let bracket = entry.bracket, let average = entry.averageFillPrice else { return }
         let spec = entry.symbol.spec
         let base = spec.ticks(price: average)
@@ -634,7 +650,12 @@ public struct TradingAccount: Codable, Sendable, Equatable {
             var child = openOrders[i]
             child.quantity = child.filledQuantity + max(0, entry.filledQuantity - child.filledQuantity)
             if child.role == .takeProfit, let tp = bracket.takeProfitTicks {
-                child.limitTicks = long ? base + Int64(tp) : base - Int64(tp)
+                let price = long ? base + Int64(tp) : base - Int64(tp)
+                // A new or moved price joins the back of the queue there.
+                if child.limitTicks != price || child.queueAhead == nil {
+                    child.limitTicks = price
+                    child.queueAhead = queuePosition(for: child, limitTicks: price, market: market)
+                }
             }
             if child.role == .stopLoss, let sl = bracket.stopLossTicks {
                 child.stopTicks = long ? base - Int64(sl) : base + Int64(sl)
@@ -675,6 +696,219 @@ public struct TradingAccount: Codable, Sendable, Equatable {
             close(orderID: o.id, as: .cancelled, reason: "Entry cancelled before filling", stamp: stamp)
         }
     }
+
+    // MARK: - Resting limits and queue position (D-34)
+
+    /// Fills a working limit order from one market update:
+    /// - **traded through** (a print better than the limit, or the opposite
+    ///   quote past it): fills completely;
+    /// - **prints at the limit by the other side** (sellers hitting a buy
+    ///   limit's price) first work through the queue ahead, then fill;
+    /// - **prints at the limit by the same side, and the opposite quote
+    ///   resting at the limit**, cross with the order directly.
+    /// Then re-estimates the queue from the end-of-update book.
+    private mutating func processRestingLimit(_ order: Order, limit: Int64, market: MarketView) -> [Fill] {
+        let buy = order.side == .buy
+        let tradedThrough = market.prints.contains { buy ? $0.priceTicks < limit : $0.priceTicks > limit }
+            || (buy ? market.askTicks < limit : market.bidTicks > limit)
+
+        var quantity = 0
+        var queue = order.queueAhead
+        var touchUsed = 0
+        if tradedThrough {
+            quantity = order.remainingQuantity
+        } else {
+            let atLimit = market.prints.filter { $0.priceTicks == limit }
+            let queueVolume = atLimit.filter { $0.aggressor != order.side }.reduce(0) { $0 + $1.size }
+            let crossing = atLimit.filter { $0.aggressor == order.side }.reduce(0) { $0 + $1.size }
+            if let ahead = queue {
+                quantity += max(0, queueVolume - ahead)
+                queue = max(0, ahead - queueVolume)
+            }
+            quantity += crossing
+            if (buy ? market.askTicks : market.bidTicks) == limit, quantity < order.remainingQuantity {
+                let shown = (buy ? market.asks : market.bids).first { $0.priceTicks == limit }?.size ?? 0
+                let free = max(0, shown - usedLiquidity(market, fromAsks: buy, priceTicks: limit))
+                touchUsed = min(free, order.remainingQuantity - quantity)
+                quantity += touchUsed
+            }
+            quantity = min(quantity, order.remainingQuantity)
+        }
+
+        var fills: [Fill] = []
+        if quantity > 0 {
+            fills = executeMaker(orderID: order.id, quantity: quantity, priceTicks: limit, market: market)
+            if touchUsed > 0, !fills.isEmpty {
+                consumeLiquidity(market, fromAsks: buy, priceTicks: limit, quantity: min(touchUsed, fills[0].quantity))
+            }
+        }
+        if let i = openOrders.firstIndex(where: { $0.id == order.id }) {
+            let estimate = queuePosition(for: openOrders[i], limitTicks: limit, market: market)
+            if let queue, let estimate {
+                openOrders[i].queueAhead = min(queue, estimate) // size ahead can only leave the queue
+            } else {
+                openOrders[i].queueAhead = queue ?? estimate
+            }
+        }
+        return fills
+    }
+
+    /// Contracts ahead of a resting limit at `limitTicks`: the displayed size
+    /// at that price on the order's side (none if the order improves on the
+    /// best price) plus your own earlier orders there. `nil` while the price
+    /// is beyond the visible depth; the order then joins the back of the
+    /// queue when the price comes into view (a conservative estimate).
+    func queuePosition(for order: Order, limitTicks: Int64, market: MarketView) -> Int? {
+        let buy = order.side == .buy
+        let best = buy ? market.bidTicks : market.askTicks
+        let improves = buy ? limitTicks > best : limitTicks < best
+        let own = openOrders.reduce(0) { sum, o in
+            o.id < order.id && o.symbol == order.symbol && o.side == order.side && o.type == .limit
+                && o.limitTicks == limitTicks && (o.status == .working || o.status == .partiallyFilled)
+                ? sum + o.remainingQuantity : sum
+        }
+        if improves { return own }
+        guard let level = (buy ? market.bids : market.asks).first(where: { $0.priceTicks == limitTicks }) else { return nil }
+        return level.size + own
+    }
+
+    /// Queue estimate for a limit order not placed yet (ticket preview).
+    public func estimatedQueue(side: OrderSide, limitTicks: Int64, market: MarketView) -> Int? {
+        let probe = Order(id: nextOrderID, clientOrderID: "", symbol: market.symbol, side: side, type: .limit, role: .entry,
+                          quantity: 1, limitTicks: limitTicks, stopTicks: nil, parentID: nil, ocoGroup: nil, bracket: nil,
+                          status: .working, createdSequence: market.sequence, createdAt: market.time,
+                          updatedSequence: market.sequence, updatedAt: market.time)
+        return queuePosition(for: probe, limitTicks: limitTicks, market: market)
+    }
+
+    // MARK: - Shared liquidity within an update (D-33c)
+
+    private func usedLiquidity(_ market: MarketView, fromAsks: Bool, priceTicks: Int64) -> Int {
+        guard let ledger = ledgers?[market.symbol], ledger.sequence == market.sequence else { return 0 }
+        return (fromAsks ? ledger.asks : ledger.bids)[priceTicks] ?? 0
+    }
+
+    private mutating func consumeLiquidity(_ market: MarketView, fromAsks: Bool, priceTicks: Int64, quantity: Int) {
+        guard quantity > 0 else { return }
+        var all = ledgers ?? [:]
+        var ledger = all[market.symbol].flatMap { $0.sequence == market.sequence ? $0 : nil }
+            ?? LiquidityLedger(sequence: market.sequence)
+        if fromAsks {
+            ledger.asks[priceTicks, default: 0] += quantity
+        } else {
+            ledger.bids[priceTicks, default: 0] += quantity
+        }
+        all[market.symbol] = ledger
+        ledgers = all
+    }
+
+    // MARK: - Account risk rules (D-35)
+
+    /// Simulated futures sessions roll over at 22:00 UTC (17:00 in Chicago
+    /// during daylight time; daylight saving is not modelled).
+    public static func sessionDay(_ time: Date) -> Int {
+        Int(((time.timeIntervalSince1970 - 22 * 3_600) / 86_400).rounded(.down))
+    }
+
+    /// Margin required by the open positions alone.
+    public func positionMargin() -> Double {
+        positions.values.reduce(0) { sum, p in
+            sum + Double(abs(p.quantity)) * configuration.costs(for: p.symbol).initialMarginPerContract
+        }
+    }
+
+    public var tradingLock: RiskLock? { monitor?.lock }
+
+    public func riskStatus(quotes: [MarketSymbol: Quote]) -> RiskStatus {
+        let equity = equity(quotes: quotes)
+        let peak = max(monitor?.peakEquity ?? startingBalance, equity)
+        return RiskStatus(sessionPnL: equity - (monitor?.sessionStartEquity ?? startingBalance),
+                          dailyLossLimit: configuration.risk.dailyLossLimit,
+                          peakEquity: peak,
+                          drawdownFloor: configuration.risk.trailingDrawdown.map { min(peak - $0, startingBalance) },
+                          lock: monitor?.lock)
+    }
+
+    /// Applies the account risk rules after a market update or an order:
+    /// - **margin liquidation:** equity below the margin of the open positions
+    ///   closes every position (no lock);
+    /// - **trailing drawdown:** equity at or below the floor (equity high −
+    ///   drawdown, never above the starting balance) closes everything and
+    ///   locks trading until the account is reset;
+    /// - **daily loss limit:** session P&L at or below −limit closes
+    ///   everything and locks trading until the next session.
+    /// Returns `true` if it changed the account.
+    @discardableResult
+    public mutating func enforceRisk(markets: [MarketSymbol: MarketView]) -> Bool {
+        guard let latest = markets.values.max(by: { $0.sequence < $1.sequence }) else { return false }
+        let stamp = Stamp(sequence: latest.sequence, time: latest.time)
+        let quotes = markets.mapValues { Quote(bidTicks: $0.bidTicks, askTicks: $0.askTicks) }
+        let rules = configuration.risk
+        var equity = equity(quotes: quotes)
+        let day = Self.sessionDay(stamp.time)
+        var changed = false
+
+        var m = monitor ?? RiskMonitor(peakEquity: max(startingBalance, equity), sessionDay: day,
+                                       sessionStartEquity: equity, lock: nil)
+        if day != m.sessionDay {
+            m.sessionDay = day
+            m.sessionStartEquity = equity
+            if let lock = m.lock, let until = lock.untilSessionDay, day > until {
+                m.lock = nil
+                log(.tradingUnlocked, nil, "New session: trading unlocked", stamp)
+                changed = true
+            }
+        }
+        m.peakEquity = max(m.peakEquity, equity)
+        monitor = m
+
+        if rules.liquidateOnMarginShortfall, !positions.isEmpty {
+            let required = positionMargin()
+            if equity < required {
+                closeEverything(markets: markets, reason: "Margin liquidation", stamp: stamp)
+                log(.liquidation, nil, "Liquidated: equity \(Self.money(equity)) was below the \(Self.money(required)) margin for the open positions", stamp)
+                equity = self.equity(quotes: quotes)
+                changed = true
+            }
+        }
+
+        if monitor?.lock == nil {
+            let floor = rules.trailingDrawdown.map { min(m.peakEquity - $0, startingBalance) }
+            if let floor, equity <= floor {
+                lockTrading(RiskLock(rule: .trailingDrawdown, title: "trailing drawdown reached",
+                                     message: "Equity \(Self.money(equity)) reached the \(Self.money(floor)) drawdown floor.",
+                                     sequence: stamp.sequence, time: stamp.time, untilSessionDay: nil),
+                            markets: markets, stamp: stamp)
+                changed = true
+            } else if let limit = rules.dailyLossLimit, equity - m.sessionStartEquity <= -limit {
+                lockTrading(RiskLock(rule: .dailyLoss, title: "daily loss limit reached",
+                                     message: "Session P&L \(Self.money(equity - m.sessionStartEquity)) reached the \(Self.money(-limit)) limit.",
+                                     sequence: stamp.sequence, time: stamp.time, untilSessionDay: day),
+                            markets: markets, stamp: stamp)
+                changed = true
+            }
+        }
+        if changed { revision += 1 }
+        return changed
+    }
+
+    private mutating func lockTrading(_ lock: RiskLock, markets: [MarketSymbol: MarketView], stamp: Stamp) {
+        closeEverything(markets: markets, reason: "Risk rule: \(lock.title)", stamp: stamp)
+        monitor?.lock = lock
+        log(.tradingLocked, nil, "Trading locked: \(lock.message) \(lock.unlockText)", stamp)
+    }
+
+    /// Cancels every order and closes every position at market.
+    private mutating func closeEverything(markets: [MarketSymbol: MarketView], reason: String, stamp: Stamp) {
+        for id in openOrders.map(\.id) where openOrders.contains(where: { $0.id == id }) {
+            close(orderID: id, as: .cancelled, reason: reason, stamp: stamp)
+        }
+        for symbol in MarketSymbol.allCases where position(symbol) != nil {
+            if let market = markets[symbol] { closePosition(market: market) }
+        }
+    }
+
+    private static func money(_ value: Double) -> String { PriceFormat.money(value, currency: "USD") }
 
     // MARK: - Bookkeeping
 
@@ -731,3 +965,49 @@ public struct TradingAccount: Codable, Sendable, Equatable {
     }
 }
 
+
+/// Displayed liquidity used by your own orders within one market update.
+struct LiquidityLedger: Codable, Hashable, Sendable {
+    var sequence: Int
+    var asks: [Int64: Int] = [:]
+    var bids: [Int64: Int] = [:]
+}
+
+/// State behind the account risk rules.
+struct RiskMonitor: Codable, Hashable, Sendable {
+    var peakEquity: Double
+    var sessionDay: Int
+    var sessionStartEquity: Double
+    var lock: RiskLock?
+}
+
+/// Trading is locked after a risk rule was breached.
+public struct RiskLock: Codable, Hashable, Sendable {
+    public enum Rule: String, Codable, Sendable { case dailyLoss, trailingDrawdown }
+
+    public let rule: Rule
+    /// Short, e.g. "daily loss limit reached".
+    public let title: String
+    public let message: String
+    public let sequence: Int
+    public let time: Date
+    /// Trading unlocks after this session day; `nil` = only an account reset unlocks it.
+    public let untilSessionDay: Int?
+
+    public var unlockText: String {
+        untilSessionDay == nil
+            ? "Trading stays locked until the account is reset."
+            : "Trading unlocks at the next session (22:00 UTC) or when the account is reset."
+    }
+}
+
+/// Where the account stands against its risk rules, for display.
+public struct RiskStatus: Sendable, Equatable {
+    /// Equity change since the session began (realized and unrealized).
+    public let sessionPnL: Double
+    public let dailyLossLimit: Double?
+    public let peakEquity: Double
+    /// Equity at which the trailing drawdown rule locks the account.
+    public let drawdownFloor: Double?
+    public let lock: RiskLock?
+}

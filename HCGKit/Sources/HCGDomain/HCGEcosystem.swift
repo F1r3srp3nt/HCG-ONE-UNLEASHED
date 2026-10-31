@@ -26,12 +26,12 @@ public struct HCGProduct: Identifiable, Hashable, Sendable {
 
 public enum HCGEcosystem {
     public static let companyName = "Hakmi Capital Group"
-    public static let productName = "HCG ONE UNLEASHED"
+    public static let productName = "HCG ONE: UNLEASHED"
 
     /// The HCG product family as published in HCG ONE. Updated for this app.
     public static let products: [HCGProduct] = [
         HCGProduct(
-            id: "hcg-one-unleashed", name: "HCG ONE UNLEASHED",
+            id: "hcg-one-unleashed", name: "HCG ONE: UNLEASHED",
             summary: "The native macOS edition of HCG ONE — this app. Currently in its first development build.",
             platforms: "macOS", status: .inDevelopment),
         HCGProduct(

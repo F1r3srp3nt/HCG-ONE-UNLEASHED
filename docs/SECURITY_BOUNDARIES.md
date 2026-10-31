@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — Security Boundaries
+# HCG ONE: UNLEASHED — Security Boundaries
 
 Status: **Phase 1 draft, with M1 controls recorded in §9.**
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`.

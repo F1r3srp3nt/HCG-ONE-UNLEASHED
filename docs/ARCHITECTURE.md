@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — Architecture
+# HCG ONE: UNLEASHED — Architecture
 
 Status: **Phase 1 baseline, updated after M1 (2026-10-30).** §9 records what M1 actually built and where it deviates. Sections 1–8 remain the plan; anything not listed in §9 is still unimplemented.
 Source reference: `F1r3srp3nt/HCG-One` at commit `b4f0e29` (read-only).

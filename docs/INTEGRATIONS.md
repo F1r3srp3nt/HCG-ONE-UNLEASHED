@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — Integrations
+# HCG ONE: UNLEASHED — Integrations
 
 Status: **Phase 1 draft; unchanged by M1.** M1 implements **no integration**. The app contains no HCG endpoint, URL, key or network client, and its sandbox entitlements grant no network access (`com.apple.security.network.client` is absent). This was verified by searching the M1 sources for `URLSession`, `URLRequest`, URLs, Keychain and token use: no matches.
 Labels (**VERIFIED / REPORTED / ASSUMPTION / PROPOSAL**) are defined in `ARCHITECTURE.md`.

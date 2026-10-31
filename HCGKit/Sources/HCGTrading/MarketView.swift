@@ -12,11 +12,25 @@ public struct PriceLevel: Hashable, Sendable {
     }
 }
 
+/// One trade printed during a market update.
+public struct TradePrint: Hashable, Sendable {
+    public let priceTicks: Int64
+    public let size: Int
+    /// The side that crossed the spread: `buy` lifted the offer, `sell` hit the bid.
+    public let aggressor: OrderSide
+
+    public init(priceTicks: Int64, size: Int, aggressor: OrderSide) {
+        self.priceTicks = priceTicks
+        self.size = size
+        self.aggressor = aggressor
+    }
+}
+
 /// The market state the trading engine executes against.
 ///
 /// This is the engine's only input about the market, which keeps the engine
 /// independent of where quotes come from (EVERYTHING IS INTERCHANGEABLE). In
-/// HCG ONE UNLEASHED it is always produced by the simulated market.
+/// HCG ONE: UNLEASHED it is always produced by the simulated market.
 public struct MarketView: Sendable {
     public let symbol: MarketSymbol
     public let spec: InstrumentSpec
@@ -31,9 +45,12 @@ public struct MarketView: Sendable {
     public let bids: [PriceLevel]
     /// Best first (ascending prices).
     public let asks: [PriceLevel]
+    /// Trades printed during this update, in order. Resting limit orders
+    /// advance through their queue only on prints at their price.
+    public let prints: [TradePrint]
 
     public init(symbol: MarketSymbol, sequence: Int, time: Date, bidTicks: Int64, askTicks: Int64,
-                lastTicks: Int64, bids: [PriceLevel], asks: [PriceLevel]) {
+                lastTicks: Int64, bids: [PriceLevel], asks: [PriceLevel], prints: [TradePrint] = []) {
         self.symbol = symbol
         self.spec = symbol.spec
         self.sequence = sequence
@@ -43,6 +60,7 @@ public struct MarketView: Sendable {
         self.lastTicks = lastTicks
         self.bids = bids
         self.asks = asks
+        self.prints = prints
     }
 
     public var bid: Double { spec.price(ticks: bidTicks) }

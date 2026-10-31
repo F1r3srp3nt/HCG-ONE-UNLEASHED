@@ -331,14 +331,14 @@ struct BracketTests {
 
     @Test("Margin preview counts the new order on top of positions and working entries")
     func marginPreview() {
-        var account = TradingAccount() // standard: ES margin $15,000
+        var account = TradingAccount() // standard: ES intraday margin $500, CL $1,000
         let v = book(bid: 21_920, sequence: 1)
-        #expect(account.marginRequirement(adding: .buy, quantity: 2, symbol: .es) == 30_000)
+        #expect(account.marginRequirement(adding: .buy, quantity: 2, symbol: .es) == 1_000)
         account.submit(.market(.buy, 1, .es, id: "a"), v)
-        #expect(account.marginRequirement() == 15_000)
-        #expect(account.marginRequirement(adding: .buy, quantity: 1, symbol: .es) == 30_000)
-        #expect(account.marginRequirement(adding: .sell, quantity: 1, symbol: .es) == 15_000, "a sell of 1 only flattens")
-        #expect(account.marginRequirement(adding: .buy, quantity: 1, symbol: .cl) == 21_000, "15,000 ES + 6,000 CL")
+        #expect(account.marginRequirement() == 500)
+        #expect(account.marginRequirement(adding: .buy, quantity: 1, symbol: .es) == 1_000)
+        #expect(account.marginRequirement(adding: .sell, quantity: 1, symbol: .es) == 500, "a sell of 1 only flattens")
+        #expect(account.marginRequirement(adding: .buy, quantity: 1, symbol: .cl) == 1_500, "500 ES + 1,000 CL")
     }
 }
 
@@ -452,7 +452,9 @@ struct IntegrityTests {
 
     @Test("Orders beyond the simulated buying power are rejected")
     func buyingPower() {
-        var account = TradingAccount() // $50,000; ES margin $15,000 per contract
+        var configuration = frictionless(buyingPower: true) // $50,000
+        configuration.costs[.es] = InstrumentCosts(commissionPerContract: 2, feesPerContract: 0, initialMarginPerContract: 15_000)
+        var account = TradingAccount(configuration: configuration)
         let v = book(sequence: 1)
         let r15 = account.submit(.market(.buy, 3, .es, id: "a"), v)
         #expect(r15.order.status == .filled)

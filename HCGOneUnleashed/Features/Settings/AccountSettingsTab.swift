@@ -30,12 +30,21 @@ struct AccountSettingsTab: View {
                     .foregroundStyle(HCGColor.textSecondary)
             }
 
-            Section("Risk limits") {
+            Section {
                 Stepper("Maximum order size: \(draft.risk.maxOrderQuantity) contracts",
                         value: $draft.risk.maxOrderQuantity, in: 1...1_000)
                 Stepper("Maximum position per market: \(draft.risk.maxPositionPerSymbol) contracts",
                         value: $draft.risk.maxPositionPerSymbol, in: 1...1_000)
                 Toggle("Reject orders that need more margin than the account's equity", isOn: $draft.risk.enforceBuyingPower)
+                optionalAmount("Daily loss limit", value: $draft.risk.dailyLossLimit, fallback: 1_000)
+                optionalAmount("Trailing drawdown", value: $draft.risk.trailingDrawdown, fallback: 2_000)
+                Toggle("Liquidate positions when equity falls below their margin", isOn: $draft.risk.liquidateOnMarginShortfall)
+                Button("Use Evaluation Account Rules") { draft.risk = .evaluation }
+            } header: {
+                Text("Risk rules")
+            } footer: {
+                Text("The daily loss limit counts realized and unrealized P&L since the session began (22:00 UTC); reaching it closes everything and locks trading until the next session. The trailing drawdown follows the equity high and stops trailing at the starting balance; reaching it locks trading until the account is reset. The defaults model a $50,000 evaluation-style account.")
+                    .foregroundStyle(HCGColor.textSecondary)
             }
 
             Section {
@@ -101,6 +110,25 @@ struct AccountSettingsTab: View {
             Button("Reset Account", role: .destructive) { resetWithDraft() }
         } message: {
             Text(Confirmation.resetAccountMessage)
+        }
+    }
+
+    /// A toggle plus a USD amount for a rule that can be switched off.
+    private func optionalAmount(_ title: String, value: Binding<Double?>, fallback: Double) -> some View {
+        HStack {
+            Toggle(title, isOn: Binding(
+                get: { value.wrappedValue != nil },
+                set: { value.wrappedValue = $0 ? (value.wrappedValue ?? fallback) : nil }
+            ))
+            Spacer()
+            TextField(title, value: Binding(
+                get: { value.wrappedValue ?? fallback },
+                set: { value.wrappedValue = $0 }
+            ), format: .number.precision(.fractionLength(0...2)))
+            .labelsHidden()
+            .multilineTextAlignment(.trailing)
+            .frame(width: 100)
+            .disabled(value.wrappedValue == nil)
         }
     }
 

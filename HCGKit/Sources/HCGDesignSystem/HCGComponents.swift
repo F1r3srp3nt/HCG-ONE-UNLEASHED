@@ -190,7 +190,7 @@ public struct SimulatedDataBadge: View {
 
     public var body: some View {
         StatusBadge("Simulated data", tone: .simulated, systemImage: "waveform.path.ecg")
-            .help("All market data in HCG ONE UNLEASHED is simulated. No exchange, broker or live feed is connected.")
+            .help("All market data in HCG ONE: UNLEASHED is simulated. No exchange, broker or live feed is connected.")
             .accessibilityLabel("Simulated data. No live market feed is connected.")
     }
 }
@@ -280,7 +280,7 @@ public struct HCGSidebarLabel: View {
     }
 }
 
-/// "HCG ONE UNLEASHED" set in the brand display face.
+/// "HCG ONE: UNLEASHED" set in the brand display face.
 public struct HCGWordmark: View {
     let size: CGFloat
 
@@ -288,7 +288,7 @@ public struct HCGWordmark: View {
 
     public var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: size * 0.35) {
-            Text("HCG ONE")
+            Text("HCG ONE:")
                 .font(HCGFont.display(size, weight: .medium))
                 .tracking(size * 0.04)
                 .foregroundStyle(HCGColor.textPrimary)
@@ -298,7 +298,7 @@ public struct HCGWordmark: View {
                 .foregroundStyle(HCGColor.textSecondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("HCG ONE UNLEASHED")
+        .accessibilityLabel("HCG ONE: UNLEASHED")
     }
 }
 #endif

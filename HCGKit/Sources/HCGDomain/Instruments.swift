@@ -4,7 +4,7 @@ import Foundation
 // ios-hcg/HCGONE/TradingLab/LabInstruments.swift. Narrowed to the four
 // simulated futures markets; prices are handled in whole ticks.
 
-/// The four simulated futures markets of HCG ONE UNLEASHED.
+/// The four simulated futures markets of HCG ONE: UNLEASHED.
 ///
 /// These are contract specifications only. All market activity in the app is
 /// simulated — no exchange, broker or live market feed is involved.

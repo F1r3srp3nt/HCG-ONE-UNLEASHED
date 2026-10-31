@@ -1,4 +1,4 @@
-# HCG ONE UNLEASHED — Open Decisions
+# HCG ONE: UNLEASHED — Open Decisions
 
 Status: **Phase 1 draft, updated after M1 and after M2 Stage 1 (2026-10-30)**; see the status sections below. Each decision belongs to the founder. "Recommendation" is a **PROPOSAL**, not a decision.
 "Blocks" names the earliest milestone that needs the answer (see `DEVELOPMENT_ROADMAP.md`).
@@ -84,6 +84,24 @@ Decision options added or raised by Stage 1:
 | **D-34** | Limit-order queue model | Fill up to the displayed size on touch (Stage 1) · a simple queue-position estimate | **Queue estimate with the DOM in Stage 3**, so touch fills are not optimistic | Stage 3 |
 | **D-35** | Margin calls and auto-liquidation | None (Stage 1: only new risk-increasing orders are rejected) · warning only · automatic liquidation below a maintenance level | **Warning first, liquidation as an option**, set by the founder. Liquidation rules are a product decision, not an engine default. | Stage 5 |
 | **D-36** | Simulated session clock | Start 2026-01-05 14:30 UTC, 1 s per update, shown in UTC (Stage 1) · start at the user's chosen session · show local time | **Keep UTC** until scenarios need a specific session. Local time would make the same session read differently in Oslo and New York. | Stage 2 (charts' time axis) |
+
+## Founder decisions of 2026-10-31
+
+| ID | Decision | Applied |
+|---|---|---|
+| **D-30** | **The product name is "HCG ONE: UNLEASHED"** (with the colon). | Window title, bundle display name, wordmark, About, Home product list, Settings text and the current docs. The bundle ID, project and repository names are unchanged. Historical reports keep the name they were written with. |
+| **D-31** | **Logos and icons may change at any time.** The supplied logo and icon are the current versions, not final ones. | The app keeps branding swappable: it uses an installed asset when present, otherwise a typeset fallback. Installing the current versions is part of Stage 4. |
+| **D-32 / D-33c / D-34 / D-35** | Founder: "be creative; this is training for mostly advanced traders moving from candlesticks to order-flow systems, so it needs to be applicable to that." **Delegated to the engineering proposal below.** | Implemented 2026-10-31 (`TRADING_ENGINE.md`). |
+
+Engineering choices made under that delegation (all editable in Settings → Account, and all revisitable):
+
+| ID | Choice | Why it fits order-flow training |
+|---|---|---|
+| D-32 | **Intraday margins:** ES $500; NQ, GC and CL $1,000 | These are the day-trading margins order-flow traders actually see. Exchange overnight margins would make a $50k account unrealistically small. |
+| D-33 | **No** (orders don't change the market path) **+ D-33c** (orders share an update's displayed liquidity) | Keeps scenarios reproducible while making the book walk honest: a second order cannot take the same contracts. |
+| D-34 | **Queue position from displayed size and prints** | The central skill in order flow is reading whether your price will trade through. A limit that fills on touch would teach the wrong lesson. |
+| D-35 | **A $50,000 evaluation-style account:** 5 contracts, $1,000 daily loss limit (lock until next session), $2,000 trailing drawdown that stops at the starting balance (lock until reset), and liquidation below margin | Most advanced retail futures traders train for, or trade, evaluation-style accounts. Practising inside the same rules is directly transferable. |
+| D-36 | **Unchanged:** UTC, session rollover at 22:00 UTC | Matches the futures trading day closely enough for daily limits. |
 
 ## Decisions already made (from the founder brief, recorded for traceability)
 

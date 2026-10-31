@@ -1,7 +1,7 @@
 import Foundation
 import HCGDomain
 
-// Simulated trading model for HCG ONE UNLEASHED. Every order, fill and
+// Simulated trading model for HCG ONE: UNLEASHED. Every order, fill and
 // position here is simulated: nothing is ever routed to an exchange, broker
 // or HCG service. Prices are stored in whole ticks of the instrument.
 
@@ -152,6 +152,10 @@ public struct Order: Identifiable, Codable, Hashable, Sendable {
     public internal(set) var averageFillPrice: Double?
     /// Rejection or cancellation reason, shown to the user.
     public internal(set) var statusReason: String?
+    /// Resting limit orders: contracts estimated to be ahead of this order in
+    /// the queue at its price (displayed size when it joined, plus your own
+    /// earlier orders there). It shrinks as trades print at that price.
+    public internal(set) var queueAhead: Int?
     public let createdSequence: Int
     public let createdAt: Date
     public internal(set) var updatedSequence: Int
@@ -229,6 +233,7 @@ public struct AccountEvent: Identifiable, Codable, Hashable, Sendable {
     public enum Kind: String, Codable, Sendable {
         case orderAccepted, orderWorking, orderPartiallyFilled, orderFilled, orderCancelled, orderRejected
         case accountReset, configurationChanged
+        case liquidation, tradingLocked, tradingUnlocked
     }
 
     public let id: Int

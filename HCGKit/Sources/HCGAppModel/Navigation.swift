@@ -5,7 +5,7 @@ import Observation
 // App navigation model, kept free of SwiftUI so it is unit-testable on any
 // platform. Moved here from the app target in M2.0 (docs/M1_AUDIT.md).
 
-/// The six primary areas of HCG ONE UNLEASHED (Go menu, ⌘1…⌘6).
+/// The six primary areas of HCG ONE: UNLEASHED (Go menu, ⌘1…⌘6).
 public enum PrimaryArea: String, CaseIterable, Identifiable, Sendable {
     case home, trading, explore, projects, connect, account
 

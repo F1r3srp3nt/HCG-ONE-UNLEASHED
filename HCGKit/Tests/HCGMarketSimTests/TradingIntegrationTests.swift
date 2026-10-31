@@ -41,6 +41,62 @@ struct TradingIntegrationTests {
         #expect(state.account.position(.gc)?.quantity == 1)
     }
 
+    @Test("The engine sees exactly the trades the simulated market printed in the latest update")
+    func printsMatchTheTape() {
+        var state = SimulationState(seed: 8)
+        for _ in 0..<50 { state.advance() }
+        for symbol in MarketSymbol.allCases {
+            let market = state.markets[symbol]!
+            let expected = market.tape.filter { $0.marketStep == market.marketStep - 1 }
+            let prints = state.marketView(symbol).prints
+            #expect(!prints.isEmpty, "every update prints 2–6 trades")
+            #expect(prints.map(\.size) == expected.map(\.size))
+            #expect(prints.map(\.priceTicks) == expected.map(\.priceTicks))
+        }
+    }
+
+    @Test("A frame's market view matches the engine's view of the book")
+    func frameMarketView() {
+        var state = SimulationState(seed: 12)
+        for _ in 0..<25 { state.advance() }
+        let frame = state.frame()
+        for symbol in MarketSymbol.allCases {
+            let a = frame.marketView(symbol)
+            let b = state.marketView(symbol)
+            #expect(a.bidTicks == b.bidTicks && a.askTicks == b.askTicks && a.sequence == b.sequence)
+            #expect(a.bids == b.bids && a.asks == b.asks)
+        }
+    }
+
+    @Test("Joining the bid on the simulated market fills only after the queue ahead has traded")
+    func queueOnTheSimulatedMarket() throws {
+        var configuration = AccountConfiguration.standard
+        configuration.risk = RiskLimits()
+        var state = SimulationState(seed: 31, account: TradingAccount(configuration: configuration))
+        for _ in 0..<30 { state.advance() }
+        let bid = state.snapshot(.es).bidTicks
+        let result = state.submit(.limit(.buy, 1, .es, at: MarketSymbol.es.spec.price(ticks: bid), id: "join"))
+        let queue = try #require(result.order.queueAhead)
+        #expect(queue > 0, "the simulated book shows size at the best bid")
+
+        var steps = 0
+        while state.account.position(.es) == nil && steps < 5_000 {
+            let aheadBefore = state.account.openOrders.first?.queueAhead
+            state.advance()
+            steps += 1
+            guard state.account.position(.es) != nil else { continue }
+            // The update that filled us: the market reached through our price,
+            // or more was sold at our price than was queued ahead of us.
+            let view = state.marketView(.es)
+            let soldAtBid = view.prints.filter { $0.priceTicks == bid && $0.aggressor == .sell }.reduce(0) { $0 + $1.size }
+            let reached = view.prints.contains { $0.priceTicks < bid || ($0.priceTicks == bid && $0.aggressor == .buy) }
+                || view.askTicks <= bid
+            #expect(reached || (aheadBefore.map { soldAtBid > $0 } ?? false),
+                    "filled after \(steps) updates: \(soldAtBid) sold at the bid vs \(String(describing: aheadBefore)) ahead")
+        }
+        #expect(state.account.position(.es)?.quantity == 1)
+    }
+
     @Test("Simulated orders never change the simulated market (D-33)")
     func ordersDoNotMoveTheMarket() {
         var quiet = SimulationState(seed: 21)
@@ -178,6 +234,7 @@ struct TradingIntegrationTests {
     func tradingSoak() {
         var configuration = AccountConfiguration.standard
         configuration.startingBalance = 5_000_000
+        configuration.risk = RiskLimits() // 100 / 50 contracts, no lock rules: the soak checks consistency, not risk
         var state = SimulationState(seed: 404, account: TradingAccount(configuration: configuration))
         var rng = SeededRNG(seed: 99)
         for i in 0..<20_000 {

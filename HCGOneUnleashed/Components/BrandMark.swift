@@ -2,7 +2,7 @@ import AppKit
 import HCGDesignSystem
 import SwiftUI
 
-/// Image names for HCG ONE UNLEASHED branding in `Resources/Assets.xcassets`.
+/// Image names for HCG ONE: UNLEASHED branding in `Resources/Assets.xcassets`.
 ///
 /// The approved futuristic UNLEASHED artwork is **not in the repository yet**.
 /// When it is installed under these names (docs/M1_AUDIT.md §5), every brand
@@ -33,7 +33,7 @@ struct BrandMark: View {
                 .interpolation(.high)
                 .scaledToFit()
                 .frame(width: size, height: size)
-                .accessibilityLabel("HCG ONE UNLEASHED")
+                .accessibilityLabel("HCG ONE: UNLEASHED")
         } else {
             Image(BrandAsset.companyLogo)
                 .resizable()
@@ -61,7 +61,7 @@ struct BrandWordmark: View {
                 .interpolation(.high)
                 .scaledToFit()
                 .frame(height: size * 1.2)
-                .accessibilityLabel("HCG ONE UNLEASHED")
+                .accessibilityLabel("HCG ONE: UNLEASHED")
         } else {
             HCGWordmark(size: size)
         }

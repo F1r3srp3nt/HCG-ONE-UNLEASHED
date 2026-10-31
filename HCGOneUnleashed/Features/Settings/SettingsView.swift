@@ -33,7 +33,7 @@ private struct SimulationSettingsTab: View {
                         Text(speed.label).tag(speed.rawValue)
                     }
                 }
-                Toggle("Start the simulation when HCG ONE UNLEASHED opens", isOn: $startOnLaunch)
+                Toggle("Start the simulation when HCG ONE: UNLEASHED opens", isOn: $startOnLaunch)
                 Stepper("Depth of market: up to \(ladderLevels) levels per side", value: $ladderLevels, in: 6...20)
             } footer: {
                 Text("Speed and start-up settings apply the next time the app opens. All market data is simulated on this Mac.")

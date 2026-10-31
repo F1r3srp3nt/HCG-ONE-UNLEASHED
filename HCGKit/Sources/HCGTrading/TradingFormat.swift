@@ -91,6 +91,9 @@ public enum TradingFormat {
         case .orderRejected: "Rejected"
         case .accountReset: "Account reset"
         case .configurationChanged: "Settings"
+        case .liquidation: "Liquidation"
+        case .tradingLocked: "Trading locked"
+        case .tradingUnlocked: "Trading unlocked"
         }
     }
 }

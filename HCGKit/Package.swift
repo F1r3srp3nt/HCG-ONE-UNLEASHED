@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// HCGKit — shared, UI-independent building blocks for HCG ONE UNLEASHED.
+// HCGKit — shared, UI-independent building blocks for HCG ONE: UNLEASHED.
 //
 // - HCGDomain:       value types (instruments, product catalog, formatting). Foundation only.
 // - HCGTrading:      simulated paper-trading account and deterministic order engine. Foundation only.
