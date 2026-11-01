@@ -1,4 +1,5 @@
 import Foundation
+import HCGCharting
 import HCGDomain
 import HCGTrading
 
@@ -34,6 +35,8 @@ public struct SimulationFrame: Sendable, Equatable {
     public let time: Date
     public let markets: [MarketSymbol: MarketSnapshot]
     public let account: TradingAccount
+    /// Candles for every timeframe, per market, built from the simulated trades.
+    public let charts: [MarketSymbol: ChartHistory]
 
     public subscript(symbol: MarketSymbol) -> MarketSnapshot {
         guard let snapshot = markets[symbol] else {
@@ -81,6 +84,9 @@ public struct SimulationState: Sendable, Equatable, Codable {
     public private(set) var clock: SimulatedClock
     public private(set) var markets: [MarketSymbol: MarketSimulator]
     public private(set) var account: TradingAccount
+    /// Candles per market. Optional so sessions saved before charts existed
+    /// still load (they start with empty charts).
+    private var chartStore: [MarketSymbol: ChartHistory]?
 
     public init(seed: UInt64 = SimulationState.defaultSeed,
                 account: TradingAccount = TradingAccount(),
@@ -93,6 +99,29 @@ public struct SimulationState: Sendable, Equatable, Codable {
         }
         self.markets = markets
         self.account = account
+        self.chartStore = Self.emptyCharts()
+    }
+
+    static func emptyCharts() -> [MarketSymbol: ChartHistory] {
+        Dictionary(uniqueKeysWithValues: MarketSymbol.allCases.map { ($0, ChartHistory()) })
+    }
+
+    /// A fresh session whose markets have already run for `history`
+    /// simulated seconds, ending at `sessionStart`, so charts open with
+    /// candles. The account takes no part in the history.
+    public static func prepared(seed: UInt64 = SimulationState.defaultSeed,
+                                account: TradingAccount = TradingAccount(),
+                                history: Int,
+                                sessionStart: Date = SimulatedClock.defaultStart) -> SimulationState {
+        let updates = max(0, history)
+        var state = SimulationState(seed: seed, account: account,
+                                    clock: SimulatedClock(start: sessionStart.addingTimeInterval(-Double(updates))))
+        for _ in 0..<updates { state.advanceMarkets() }
+        return state
+    }
+
+    public func chart(_ symbol: MarketSymbol) -> ChartHistory {
+        chartStore?[symbol] ?? ChartHistory()
     }
 
     /// Stable per-market seed derived from the session seed.
@@ -112,30 +141,78 @@ public struct SimulationState: Sendable, Equatable, Codable {
     /// Advances every market by one update, then lets the account execute
     /// working orders the new market state reached.
     public mutating func advance() {
-        for symbol in MarketSymbol.allCases { markets[symbol]?.advance() }
-        sequence += 1
-        revision += 1
+        advanceMarkets()
         for symbol in MarketSymbol.allCases where account.hasOpenOrders(symbol) {
             account.process(market: marketView(symbol))
         }
         enforceRisk()
     }
 
+    /// Moves every market one update and adds its trades to the charts.
+    mutating func advanceMarkets() {
+        for symbol in MarketSymbol.allCases { markets[symbol]?.advance() }
+        sequence += 1
+        revision += 1
+        feedCharts()
+    }
+
+    /// The update covers the simulated second before `time`; its trades are
+    /// spread evenly across that second, in the order they printed.
+    private mutating func feedCharts() {
+        if chartStore == nil { chartStore = Self.emptyCharts() }
+        let updateStart = clock.time(at: sequence - 1)
+        for symbol in MarketSymbol.allCases {
+            let trades = latestTrades(symbol)
+            guard !trades.isEmpty else { continue }
+            let step = clock.secondsPerUpdate / Double(trades.count + 1)
+            for (i, trade) in trades.enumerated() {
+                // Mutated in place: no copy of the stored candles per trade.
+                chartStore?[symbol, default: ChartHistory()].add(
+                    TradeEvent(time: updateStart.addingTimeInterval(step * Double(i + 1)),
+                               priceTicks: trade.priceTicks, size: trade.size,
+                               aggressor: trade.aggressor == .buy ? .buy : .sell))
+            }
+        }
+    }
+
+    /// Trades of a market's latest update (recorded before its step counter advanced).
+    private func latestTrades(_ symbol: MarketSymbol) -> [TapeTrade] {
+        guard let market = markets[symbol] else { return [] }
+        let step = market.marketStep - 1
+        return Array(market.tape.reversed().prefix { $0.marketStep == step }.reversed())
+    }
+
     /// Applies the account's risk rules (daily loss, trailing drawdown,
     /// margin liquidation) against the current markets.
     private mutating func enforceRisk() {
+        guard account.needsRiskCheck(at: time) else { return }
         var views: [MarketSymbol: MarketView] = [:]
         for symbol in MarketSymbol.allCases { views[symbol] = marketView(symbol) }
         account.enforceRisk(markets: views)
     }
 
     /// Restarts every market with a new seed and resets the account.
-    public mutating func resetSession(seed newSeed: UInt64, configuration: AccountConfiguration? = nil) {
+    /// With `history` > 0 the new markets first run that many simulated
+    /// seconds, ending at the session start (see `prepared`).
+    public mutating func resetSession(seed newSeed: UInt64, configuration: AccountConfiguration? = nil, history: Int = 0) {
         let nextRevision = revision + 1
         var account = account
-        account.reset(configuration: configuration, at: Stamp(sequence: 0, time: clock.time(at: 0)))
-        self = SimulationState(seed: newSeed, account: account, clock: clock)
-        revision = nextRevision
+        if history > 0 {
+            account.reset(configuration: configuration, at: Stamp(sequence: history, time: SimulatedClock.defaultStart))
+            self = SimulationState.prepared(seed: newSeed, account: account, history: history)
+        } else {
+            account.reset(configuration: configuration, at: Stamp(sequence: 0, time: clock.time(at: 0)))
+            self = SimulationState(seed: newSeed, account: account, clock: clock)
+        }
+        revision = max(revision, nextRevision)
+    }
+
+    /// Replaces an untouched session's markets with ones that have run
+    /// `history` simulated seconds; the account is kept as it is.
+    mutating func prepareHistory(_ history: Int) {
+        let nextRevision = revision + 1
+        self = SimulationState.prepared(seed: seed, account: account, history: history)
+        revision = max(revision, nextRevision)
     }
 
     /// Restarts every market with a new seed. The account is kept.
@@ -148,6 +225,10 @@ public struct SimulationState: Sendable, Equatable, Codable {
     /// Loads a scripted scenario into its market; other markets continue.
     public mutating func load(_ scenario: MarketScenario, seed: UInt64? = nil) {
         markets[scenario.symbol]?.load(scenario, seed: seed)
+        // The scenario restarts this market's price path, so its chart restarts too.
+        var charts = chartStore ?? Self.emptyCharts()
+        charts[scenario.symbol] = ChartHistory()
+        chartStore = charts
         revision += 1
     }
 
@@ -221,16 +302,14 @@ public struct SimulationState: Sendable, Equatable, Codable {
     public func marketView(_ symbol: MarketSymbol) -> MarketView {
         guard let market = markets[symbol] else { preconditionFailure("No market for \(symbol)") }
         let book = market.book
-        // Trades of the market's latest update (recorded before its step counter advanced).
-        let step = market.marketStep - 1
-        let prints = market.tape.reversed().prefix { $0.marketStep == step }.reversed().map {
+        let prints = latestTrades(symbol).map {
             TradePrint(priceTicks: $0.priceTicks, size: $0.size, aggressor: $0.aggressor == .buy ? .buy : .sell)
         }
         return MarketView(symbol: symbol, sequence: sequence, time: time,
                           bidTicks: book.bestBid, askTicks: book.bestAsk, lastTicks: market.lastTicks,
                           bids: book.bids.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) },
                           asks: book.asks.map { PriceLevel(priceTicks: $0.priceTicks, size: $0.size) },
-                          prints: Array(prints))
+                          prints: prints)
     }
 
     public func quotes() -> [MarketSymbol: Quote] {
@@ -240,7 +319,8 @@ public struct SimulationState: Sendable, Equatable, Codable {
     public func frame() -> SimulationFrame {
         var snapshots: [MarketSymbol: MarketSnapshot] = [:]
         for (symbol, market) in markets { snapshots[symbol] = market.snapshot(frameSequence: sequence) }
-        return SimulationFrame(sequence: sequence, revision: revision, time: time, markets: snapshots, account: account)
+        return SimulationFrame(sequence: sequence, revision: revision, time: time, markets: snapshots, account: account,
+                               charts: chartStore ?? Self.emptyCharts())
     }
 }
 
@@ -268,8 +348,15 @@ public actor SimulationEngine {
         return state.frame()
     }
 
-    public func resetSession(seed: UInt64, configuration: AccountConfiguration?) -> SimulationFrame {
-        state.resetSession(seed: seed, configuration: configuration)
+    public func resetSession(seed: UInt64, configuration: AccountConfiguration?, history: Int = 0) -> SimulationFrame {
+        state.resetSession(seed: seed, configuration: configuration, history: history)
+        return state.frame()
+    }
+
+    /// Gives an untouched session `history` simulated seconds of market
+    /// history (see `SimulationState.prepared`).
+    public func prepareHistory(_ history: Int) -> SimulationFrame {
+        state.prepareHistory(history)
         return state.frame()
     }
 

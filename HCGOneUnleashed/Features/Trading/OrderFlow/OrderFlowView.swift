@@ -1,4 +1,5 @@
 import HCGAppModel
+import HCGCharting
 import HCGDesignSystem
 import HCGDomain
 import HCGMarketSim
@@ -14,12 +15,21 @@ struct OrderFlowView: View {
     @Environment(SimulationHost.self) private var simulation
     @Environment(NavigationModel.self) private var navigation
     @AppStorage(Preferences.ladderLevels) private var ladderLevels = 12
+    @AppStorage(Preferences.chartSettings) private var chartSettingsData = Data()
+
+    /// Chart settings stored as JSON in the user's preferences.
+    private var chartSettings: Binding<ChartSettings> {
+        Binding(
+            get: { (try? JSONDecoder().decode(ChartSettings.self, from: chartSettingsData))?.clamped() ?? ChartSettings() },
+            set: { chartSettingsData = (try? JSONEncoder().encode($0.clamped())) ?? Data() }
+        )
+    }
 
     var body: some View {
         @Bindable var navigation = navigation
         let symbol = navigation.orderFlowSymbol
 
-        OrderFlowPanels(symbol: symbol, ladderLevels: ladderLevels)
+        OrderFlowPanels(symbol: symbol, ladderLevels: ladderLevels, chartSettings: chartSettings)
             .background(HCGColor.canvas)
             .focusable()
             .focusEffectDisabled()
@@ -79,6 +89,7 @@ struct OrderFlowView: View {
 private struct OrderFlowPanels: View {
     let symbol: MarketSymbol
     let ladderLevels: Int
+    @Binding var chartSettings: ChartSettings
     @Environment(SimulationHost.self) private var simulation
 
     var body: some View {
@@ -89,7 +100,9 @@ private struct OrderFlowPanels: View {
             MarketHeaderBar(snapshot: snapshot, isPlaying: simulation.isPlaying, speed: simulation.speed)
             Divider()
             HSplitView {
-                PriceChartPanel(series: PriceSeries(snapshot: snapshot), spec: snapshot.spec)
+                CandleChartPanel(symbol: symbol, history: frame.charts[symbol] ?? ChartHistory(), snapshot: snapshot,
+                                 account: frame.account, isPreparingHistory: simulation.isPreparingHistory,
+                                 settings: $chartSettings)
                     .frame(minWidth: 380, idealWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
                 DepthLadderPanel(snapshot: snapshot, maxLevelsPerSide: ladderLevels)
                     .frame(minWidth: 280, idealWidth: 340, maxWidth: 520, maxHeight: .infinity)

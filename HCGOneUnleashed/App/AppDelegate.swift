@@ -19,8 +19,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if UserDefaults.standard.object(forKey: Preferences.startSimulationOnLaunch) as? Bool ?? true {
-            simulation.play()
+        let defaults = UserDefaults.standard
+        let startPlaying = defaults.object(forKey: Preferences.startSimulationOnLaunch) as? Bool ?? true
+        let hours = defaults.object(forKey: Preferences.marketHistoryHours) as? Int ?? Preferences.defaultMarketHistoryHours
+        Task {
+            // A new session first gets simulated market history (off the main
+            // actor), so charts open with candles. A restored session keeps its own.
+            await simulation.prepareHistory(updates: max(0, hours) * 3_600)
+            if startPlaying { simulation.play() }
         }
     }
 

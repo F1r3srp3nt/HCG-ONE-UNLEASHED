@@ -1,0 +1,95 @@
+# HCG ONE: UNLEASHED — Charting
+
+Status: **M2 Stage 2, implemented (2026-11-01)**. Code: `HCGKit/Sources/HCGCharting` (candles, indicators, chart model), `HCGKit/Sources/HCGMarketSim/SimulationEngine.swift` (feeding and history), `HCGOneUnleashed/Features/Trading/OrderFlow/CandleChartPanel.swift` and `ChartRenderer.swift` (the chart). Tests: `HCGKit/Tests/HCGChartingTests`, `HCGKit/Tests/HCGMarketSimTests/ChartIntegrationTests.swift`. Report: `M2_STAGE2_REPORT.md`.
+
+**All data is simulated.** Candles are built from the app's simulated trades; no exchange or vendor data is used.
+
+## 1. Candles from timestamped trades
+
+Every chart is built from **trade events**, never from other candles: time, price (whole ticks), size and aggressor (buyer- or seller-initiated). Every timeframe therefore agrees with the tape and with every other timeframe (tested).
+
+| Timeframe | Alignment |
+|---|---|
+| 1m, 5m, 15m, 1h | UTC clock (e.g. 5m candles start at :00, :05, …) |
+| 4h | Futures session: 22:00, 02:00, 06:00, 10:00, 14:00, 18:00 UTC |
+| 1D | Futures session: one candle per session, from **22:00 UTC** (17:00 Chicago in daylight time; daylight saving is not modelled) |
+
+Each candle holds open, high, low, close, volume, **buy volume and sell volume (delta)**, trade count, and Σ price × size, so its VWAP is exact. The open is the earliest trade by time and the close the latest, so trades that arrive out of order still produce the right candle (tested with a shuffled feed). A period with no trades has no candle. A trade older than a full history is dropped and counted.
+
+**Storage:** 400 candles per timeframe per market. Closed candles and the forming candle are stored separately, so a trade changes only the forming candle. Frames shared with the UI copy the closed candles only when one closes.
+
+### Where the trades come from
+
+Each simulator update is one simulated second and prints 2–6 trades. The simulation spreads them evenly across that second, in print order, and adds them to all six timeframes of that market. Loading a scripted scenario restarts that market's price path, so its chart restarts too.
+
+### Market history at session start
+
+A new session (first launch, or Reset Simulated Session) first runs the simulated markets for **6 hours of simulated time (08:30–14:30 UTC)**, then opens at 14:30 UTC. Charts therefore start with candles on every intraday timeframe:
+
+| | 1m | 5m | 15m | 1h | 4h | 1D |
+|---|---|---|---|---|---|---|
+| Candles at open (6 h of history) | 360 | 72 | 24 | 7 | 3 | 1 |
+
+- The account takes no part in the history.
+- The history is built off the main actor; the chart shows "Building simulated market history…" and playback starts when it is ready.
+- A restored session keeps its own history.
+- Length: Settings → Simulation → "Market history for new sessions" (none, 1, 3 or 6 hours).
+- Cost: measured on Linux in a debug build, charts add about 45% to each simulated update (≈ 0.15 ms for all four markets with charts, against 0.10 ms without), and 6 hours of history takes about 3 s. A release build is expected to be several times faster, but this has **not been measured** on a Mac.
+- **Daily candles need simulated days.** One session gives one daily candle, which is honest but sparse: the 1D chart fills as sessions run.
+
+## 2. Indicators
+
+All indicators are pure functions in `HCGCharting.Indicators`. Each returns one value per candle, `nil` while warming up. They run on prices in ticks and are converted to prices for display.
+
+| Indicator | Definition | First value | Reference |
+|---|---|---|---|
+| SMA(n) | Mean of the last n closes | index n−1 | TA-Lib `SMA` |
+| EMA(n) | α = 2/(n+1), seeded with the SMA of the first n closes | index n−1 | TA-Lib `EMA` |
+| RSI(14) | Wilder smoothing of gains and losses; seeded with their simple averages over the first 14 changes; a window with no movement reads 0 | index 14 | TA-Lib `RSI` |
+| MACD(12, 26, 9) | EMA(12) − EMA(26); signal = EMA(9) of MACD; histogram = MACD − signal. **Both EMAs are seeded at index 25** (the fast one from the 12 closes ending there), and the signal at index 33. | MACD 25, signal 33 | TA-Lib `MACD` |
+| Bollinger(20, 2) | SMA(20) ± 2 × population standard deviation (two-pass, accurate at index-futures price levels) | index 19 | TA-Lib `BBANDS` |
+| ATR(14) | Wilder smoothing of true range; TR needs the previous close, so it starts at index 1; ATR is seeded with the mean of TR 1…14 | index 14 | TA-Lib `ATR` |
+| Session VWAP | Σ(price × size) / Σ size over every trade since the session opened (22:00 UTC), at each candle's close | index 0 | pandas, from the raw trades |
+
+**MACD convention.** Textbook MACD starts the fast EMA at index 11, so its first few dozen values differ from TA-Lib's (and from platforms that follow TA-Lib) before the two converge. HCG ONE: UNLEASHED follows TA-Lib, verified to within 1e-12 during development.
+
+### Reference data
+
+The test fixtures are generated by `HCGKit/Tools/generate_chart_reference.py` using **TA-Lib 0.8.3** (indicators) and **pandas 3.1** (`resample` with epoch origin and the 22:00 UTC offset for 4h and 1D, and session VWAP). The inputs are deterministic (fixed NumPy seeds), and regenerating produces a byte-identical file (checked). The inputs:
+- **150 candles** for the indicators;
+- **1,500 trades** from 20:30 UTC across the 22:00 session open, for aggregation and VWAP.
+
+The fixture is CSV inside Swift string literals: large array literals made the Swift compiler run out of memory. The tests compare every value:
+- the same warm-up positions;
+- differences within 1e-8 (1e-6 for Bollinger outer bands, whose square root amplifies rounding);
+- candle values exactly.
+
+## 3. The chart (Order Flow)
+
+The chart replaces the M1 price chart in Trading → Order Flow.
+
+- **Timeframe:** 1m 5m 15m 1h 4h 1D. Every timeframe is built from the same trades.
+- **Overlays** (Indicators menu): SMA(20), EMA(9), EMA(21), Bollinger(20, 2), session VWAP.
+- **Lower study:** none, RSI(14) with 30/70 guides, MACD(12, 26, 9) with histogram, or ATR(14).
+- **Volume pane:** bars **coloured by each candle's delta** (buyers vs sellers). This is the first step from candles to order flow; the footprint and cumulative delta follow in Stage 3.
+- **Your trading on the chart:** the position's average price and every working order (limit, stop, TP, SL) as dashed lines with labels.
+- **Last price** tag on the price axis, which uses round, tick-aligned labels.
+- **Crosshair** with a price tag. The readout under the chart shows time (UTC), OHLC, volume, delta and indicator values for the candle under the pointer, or the newest candle.
+- **Zoom** (buttons, pinch: 20–400 candles) and **pan** (drag; "Latest" returns to live).
+- Settings (timeframe, overlays, study, zoom) are remembered.
+
+The chart is drawn with SwiftUI `Canvas`. Its geometry is in `HCGCharting.ChartModel` and is unit-tested:
+- the viewport (which candles are visible);
+- hit-testing (which candle is under the pointer);
+- the price scale and axis labels;
+- the study computation.
+
+## 4. Known limitations
+
+| # | Limitation | Note |
+|---|---|---|
+| C-1 | 1D needs multiple simulated sessions to show more than one candle. | By design: no fabricated history. |
+| C-2 | Indicator periods other than the SMA/EMA defaults are not editable in the UI yet; the model supports them (`ChartSettings`). | Stage 5 (workspaces) is a natural home. |
+| C-3 | There are no drawing tools (trend lines, levels) and no chart trading (placing orders by clicking the chart). | Chart trading belongs with the Stage 3 DOM. |
+| C-4 | Time labels are UTC only (D-36). | |
+| C-5 | Chart rendering performance has not been measured on a Mac. | Measure on 16 GB hardware (D-21). |

@@ -105,6 +105,14 @@ The founder authorized M2 ("Functional Trading Platform, Order Flow Workstation 
   - Stage 4: HCG Command Center Home and branding.
   - Stage 5: workspaces, skins, multi-window, ⌘K, export, performance.
 
+## M2 Stage 2: Charting (2026-11-01)
+
+**Status: implemented on branch `feature/m2-stage2-charting`, not committed. Awaiting the founder's build and review.**
+- Candles for 1m–1D built from timestamped simulated trades.
+- SMA, EMA, RSI, MACD, Bollinger, VWAP and ATR, verified against TA-Lib and pandas.
+- A new Order Flow chart, and 6 hours of simulated market history at session start.
+- Design: `CHARTING.md`. Report, tests and QA checklist: `M2_STAGE2_REPORT.md`. HCGKit: 134 tests pass (Linux). The app target was not compiled here.
+
 ## M2: Trading workstation v1
 
 **Goal:** the desktop differentiator, as a usable simulated workstation.

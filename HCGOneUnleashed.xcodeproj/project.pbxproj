@@ -12,6 +12,7 @@
 		4C4700000000000000000016 /* HCGDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000013 /* HCGDesignSystem */; };
 		4C4700000000000000000018 /* HCGAppModel in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000017 /* HCGAppModel */; };
 		4C470000000000000000001A /* HCGTrading in Frameworks */ = {isa = PBXBuildFile; productRef = 4C4700000000000000000019 /* HCGTrading */; };
+		4C470000000000000000001C /* HCGCharting in Frameworks */ = {isa = PBXBuildFile; productRef = 4C470000000000000000001B /* HCGCharting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 				4C4700000000000000000016 /* HCGDesignSystem in Frameworks */,
 				4C4700000000000000000018 /* HCGAppModel in Frameworks */,
 				4C470000000000000000001A /* HCGTrading in Frameworks */,
+				4C470000000000000000001C /* HCGCharting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +85,7 @@
 				4C4700000000000000000013 /* HCGDesignSystem */,
 				4C4700000000000000000017 /* HCGAppModel */,
 				4C4700000000000000000019 /* HCGTrading */,
+				4C470000000000000000001B /* HCGCharting */,
 			);
 			productName = HCGOneUnleashed;
 			productReference = 4C4700000000000000000005 /* HCGOneUnleashed.app */;
@@ -378,6 +381,10 @@
 		4C4700000000000000000019 /* HCGTrading */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HCGTrading;
+		};
+		4C470000000000000000001B /* HCGCharting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HCGCharting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

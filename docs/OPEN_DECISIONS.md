@@ -103,6 +103,13 @@ Engineering choices made under that delegation (all editable in Settings → Acc
 | D-35 | **A $50,000 evaluation-style account:** 5 contracts, $1,000 daily loss limit (lock until next session), $2,000 trailing drawdown that stops at the starting balance (lock until reset), and liquidation below margin | Most advanced retail futures traders train for, or trade, evaluation-style accounts. Practising inside the same rules is directly transferable. |
 | D-36 | **Unchanged:** UTC, session rollover at 22:00 UTC | Matches the futures trading day closely enough for daily limits. |
 
+## Raised by M2 Stage 2 (2026-11-01)
+
+| ID | Decision | Options | Recommendation | Blocks |
+|---|---|---|---|---|
+| **D-37** | Market history at session start | None · 1 / 3 / 6 hours (Stage 2 default 6) · multiple simulated days | **6 hours**, so every intraday timeframe opens with enough candles for its indicators. Multiple days would take tens of seconds per session in a debug build. 1D therefore fills only as sessions pass. | Stage 2 review |
+| **D-38** | Indicator conventions | TA-Lib (Stage 2) · textbook/StockCharts · a specific platform | **TA-Lib**, the most widely used reference. The only visible difference is MACD's first few dozen values (`CHARTING.md` §2). If students compare against a specific platform, name it and we will match it. | Stage 2 review |
+
 ## Decisions already made (from the founder brief, recorded for traceability)
 
 | Decision | Source |

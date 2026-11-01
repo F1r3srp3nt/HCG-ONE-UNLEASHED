@@ -23,6 +23,7 @@ private struct SimulationSettingsTab: View {
     @AppStorage(Preferences.defaultSpeed) private var defaultSpeed = SimulationSpeed.normal.rawValue
     @AppStorage(Preferences.startSimulationOnLaunch) private var startOnLaunch = true
     @AppStorage(Preferences.ladderLevels) private var ladderLevels = 12
+    @AppStorage(Preferences.marketHistoryHours) private var historyHours = Preferences.defaultMarketHistoryHours
     @State private var confirmReset = false
 
     var body: some View {
@@ -35,8 +36,14 @@ private struct SimulationSettingsTab: View {
                 }
                 Toggle("Start the simulation when HCG ONE: UNLEASHED opens", isOn: $startOnLaunch)
                 Stepper("Depth of market: up to \(ladderLevels) levels per side", value: $ladderLevels, in: 6...20)
+                Picker("Market history for new sessions", selection: $historyHours) {
+                    Text("None").tag(0)
+                    Text("1 hour").tag(1)
+                    Text("3 hours").tag(3)
+                    Text("6 hours").tag(6)
+                }
             } footer: {
-                Text("Speed and start-up settings apply the next time the app opens. All market data is simulated on this Mac.")
+                Text("Speed and start-up settings apply the next time the app opens. Market history is simulated before a new session starts (first launch or Reset Simulated Session), so charts open with candles. All market data is simulated on this Mac.")
                     .foregroundStyle(HCGColor.textSecondary)
             }
 

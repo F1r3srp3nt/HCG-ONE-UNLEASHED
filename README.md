@@ -2,11 +2,14 @@
 
 The native macOS edition of HCG ONE by Hakmi Capital Group: simulated order-flow trading training for advanced traders.
 
-**Status: development build, M2 Stage 1** (simulated trading account and order engine). Native shell, simulated market engine, Order Flow, and a simulated trading account with market, limit, stop and bracket orders (Trading → Simulate).
+**Status: development build, M2 Stage 2** (charting). This build contains:
+- the native shell and the simulated market engine;
+- Order Flow, with candlestick charts from 1m to 1D built from the simulated trades, and indicators verified against TA-Lib;
+- a simulated evaluation-style trading account (Trading → Simulate).
 - No sign-in, no network connections, no payments or licensing.
 - **All market data and all trading are simulated.** No order ever leaves the Mac.
 
-Planning and status documents are in [`docs/`](docs). Start with [`docs/M2_STAGE1_REPORT.md`](docs/M2_STAGE1_REPORT.md), [`docs/TRADING_ENGINE.md`](docs/TRADING_ENGINE.md) and [`docs/M2_IMPLEMENTATION_PLAN.md`](docs/M2_IMPLEMENTATION_PLAN.md).
+Planning and status documents are in [`docs/`](docs). Start with [`docs/M2_STAGE2_REPORT.md`](docs/M2_STAGE2_REPORT.md), [`docs/CHARTING.md`](docs/CHARTING.md), [`docs/M2_STAGE1_REPORT.md`](docs/M2_STAGE1_REPORT.md), [`docs/TRADING_ENGINE.md`](docs/TRADING_ENGINE.md) and [`docs/M2_IMPLEMENTATION_PLAN.md`](docs/M2_IMPLEMENTATION_PLAN.md).
 
 ## Requirements
 
@@ -22,7 +25,7 @@ Planning and status documents are in [`docs/`](docs). Start with [`docs/M2_STAGE
 ```bash
 git clone https://github.com/F1r3srp3nt/HCG-ONE-UNLEASHED.git
 cd HCG-ONE-UNLEASHED
-git checkout feature/m2-stage1-trading-engine   # current development branch, once pushed
+git checkout feature/m2-stage2-charting   # current development branch, once pushed
 open HCGOneUnleashed.xcodeproj
 ```
 
@@ -58,7 +61,7 @@ xcodebuild -project HCGOneUnleashed.xcodeproj -scheme HCGOneUnleashed -configura
 
 ### Core tests without a Mac
 
-`HCGDomain`, `HCGTrading`, `HCGMarketSim` and `HCGAppModel` use only Foundation (and Observation), and `HCGDesignSystem` compiles to an empty module off macOS. The core tests also run in the official Swift Docker image:
+`HCGDomain`, `HCGTrading`, `HCGCharting`, `HCGMarketSim` and `HCGAppModel` use only Foundation (and Observation), and `HCGDesignSystem` compiles to an empty module off macOS. The core tests also run in the official Swift Docker image:
 
 ```bash
 docker run --rm -v "$PWD/HCGKit":/pkg -w /pkg swift:6.2-noble swift test
@@ -77,6 +80,8 @@ HCGOneUnleashed/
 HCGKit/                      local Swift package
   Sources/HCGDomain/         instruments, formatting, HCG product catalog
   Sources/HCGTrading/        simulated account and order engine (orders, fills, positions, risk, costs)
+  Sources/HCGCharting/       candles 1m–1D from trades, indicators, chart geometry
+  Tools/                     reference-data generator for the charting tests (TA-Lib, pandas)
   Sources/HCGMarketSim/      simulated market, order book, clock, session persistence, GEX model
   Sources/HCGAppModel/       navigation model (destinations, Go menu, window state)
   Sources/HCGDesignSystem/   colors, typography, panels, buttons, badges

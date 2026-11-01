@@ -72,6 +72,8 @@ public final class SimulationHost {
     public private(set) var restoreNotice: String?
     /// Last save failure, if any (saving is retried on the next change).
     public private(set) var lastSaveError: String?
+    /// True while simulated market history is being built (see `prepareHistory`).
+    public private(set) var isPreparingHistory = false
 
     @ObservationIgnored private let engine: SimulationEngine
     @ObservationIgnored private let ticker: any SimulationTicker
@@ -86,6 +88,10 @@ public final class SimulationHost {
     @ObservationIgnored private var savedAccountRevision: Int
     @ObservationIgnored private var savedRevision: Int
     @ObservationIgnored private var lastSave = ContinuousClock.now
+    /// Simulated seconds of history a new session starts with.
+    @ObservationIgnored private var historyUpdates = 0
+    @ObservationIgnored private var restoredFromDisk = false
+    @ObservationIgnored private var playWhenReady = false
 
     /// - Parameters:
     ///   - persistence: where to load and save the session; `nil` keeps
@@ -98,12 +104,14 @@ public final class SimulationHost {
                 marketSaveInterval: Duration = .seconds(30)) {
         var state = SimulationState(seed: seed)
         var notice: String?
+        var restored = false
         if let persistence {
             switch persistence.load() {
             case .fresh:
                 break
             case .restored(let saved, let savedAt):
                 state = saved
+                restored = true
                 notice = "Restored your simulated session (saved \(savedAt.formatted(date: .abbreviated, time: .shortened)))."
             case .recovered(let backup, let reason):
                 notice = "\(reason) A new simulated session was started." + (backup.map { " The old file was kept as \($0.lastPathComponent)." } ?? "")
@@ -120,6 +128,7 @@ public final class SimulationHost {
         self.marketSaveInterval = marketSaveInterval
         self.savedAccountRevision = state.account.revision
         self.savedRevision = state.revision
+        self.restoredFromDisk = restored
         if writer != nil { startAutosave() }
     }
 
@@ -130,6 +139,10 @@ public final class SimulationHost {
     // MARK: Playback
 
     public func play() {
+        guard !isPreparingHistory else {
+            playWhenReady = true
+            return
+        }
         guard !isPlaying else { return }
         isPlaying = true
         let previous = finishingLoop
@@ -180,14 +193,35 @@ public final class SimulationHost {
         publish(await engine.advance())
     }
 
-    /// Restarts every market **and** resets the simulated account. Playback
-    /// resumes if it was running.
+    /// Gives a new session `updates` simulated seconds of market history,
+    /// so charts open with candles; playback requested meanwhile starts when
+    /// it is ready. A restored or already-running session keeps its own
+    /// history; the setting then applies to the next session reset.
+    public func prepareHistory(updates: Int) async {
+        historyUpdates = max(0, updates)
+        guard historyUpdates > 0, !restoredFromDisk, frame.sequence == 0, !isPreparingHistory else { return }
+        isPreparingHistory = true
+        publish(await engine.prepareHistory(historyUpdates))
+        isPreparingHistory = false
+        if playWhenReady {
+            playWhenReady = false
+            play()
+        }
+    }
+
+    /// Restarts every market **and** resets the simulated account, with the
+    /// market history set by `prepareHistory`. Playback resumes if it was running.
     public func reset(seed: UInt64 = SimulationState.defaultSeed, configuration: AccountConfiguration? = nil) async {
         let wasPlaying = isPlaying
         await pauseAndWait()
         lastOrderMessage = nil
-        publish(await engine.resetSession(seed: seed, configuration: configuration))
-        if wasPlaying { play() }
+        isPreparingHistory = historyUpdates > 0
+        publish(await engine.resetSession(seed: seed, configuration: configuration, history: historyUpdates))
+        isPreparingHistory = false
+        if wasPlaying || playWhenReady {
+            playWhenReady = false
+            play()
+        }
     }
 
     public func load(_ scenario: MarketScenario) async {

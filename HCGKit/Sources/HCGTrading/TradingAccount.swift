@@ -819,6 +819,14 @@ public struct TradingAccount: Codable, Sendable, Equatable {
 
     public var tradingLock: RiskLock? { monitor?.lock }
 
+    /// Whether `enforceRisk` can change anything at `time`: there are
+    /// positions to mark, the rule state is not set up yet, or a new
+    /// session begins. Lets the clock skip building market views otherwise.
+    public func needsRiskCheck(at time: Date) -> Bool {
+        guard let monitor else { return true }
+        return !positions.isEmpty || monitor.sessionDay != Self.sessionDay(time)
+    }
+
     public func riskStatus(quotes: [MarketSymbol: Quote]) -> RiskStatus {
         let equity = equity(quotes: quotes)
         let peak = max(monitor?.peakEquity ?? startingBalance, equity)
